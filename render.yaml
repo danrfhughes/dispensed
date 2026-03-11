@@ -5,7 +5,7 @@ services:
     region: frankfurt
     plan: starter
     buildCommand: bundle install && bundle exec rails assets:precompile
-    startCommand: bundle exec rails server
+    startCommand: bundle exec puma -C config/puma.rb
     preDeployCommand: bundle exec rails db:migrate
     healthCheckPath: /users/sign_in
     envVars:
@@ -21,25 +21,8 @@ services:
         fromDatabase:
           name: dispensed-db
           property: connectionString
-
-  - type: worker
-    name: dispensed-worker
-    runtime: ruby
-    region: frankfurt
-    plan: starter
-    buildCommand: bundle install
-    startCommand: bundle exec rails solid_queue:start
-    envVars:
-      - key: RAILS_ENV
-        value: production
-      - key: RAILS_LOG_TO_STDOUT
+      - key: SOLID_QUEUE_IN_PUMA
         value: "true"
-      - key: RAILS_MASTER_KEY
-        sync: false  # Set manually in Render dashboard
-      - key: DATABASE_URL
-        fromDatabase:
-          name: dispensed-db
-          property: connectionString
 
 databases:
   - name: dispensed-db

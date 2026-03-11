@@ -35,7 +35,11 @@ port ENV.fetch("PORT", 3000)
 plugin :tmp_restart
 
 # Run the Solid Queue supervisor inside of Puma for single-server deployments.
-plugin :solid_queue if ENV["SOLID_QUEUE_IN_PUMA"]
+# Solid Queue plugin requires single mode (workers 0) — cluster mode causes a nil PID error.
+if ENV["SOLID_QUEUE_IN_PUMA"]
+  workers 0
+  plugin :solid_queue
+end
 
 # Specify the PID file. Defaults to tmp/pids/server.pid in development.
 # In other environments, only set the PID file if requested.
