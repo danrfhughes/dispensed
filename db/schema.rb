@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_11_012403) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_11_095738) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -56,6 +56,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_012403) do
     t.integer "user_id", null: false
     t.index ["nhs_number"], name: "index_patient_profiles_on_nhs_number", unique: true, where: "(nhs_number IS NOT NULL)"
     t.index ["user_id"], name: "index_patient_profiles_on_user_id", unique: true
+  end
+
+  create_table "pharmacies", force: :cascade do |t|
+    t.text "address"
+    t.datetime "created_at", null: false
+    t.string "email"
+    t.string "name"
+    t.bigint "patient_profile_id", null: false
+    t.string "phone"
+    t.datetime "updated_at", null: false
+    t.index ["patient_profile_id"], name: "index_pharmacies_on_patient_profile_id"
   end
 
   create_table "schedules", force: :cascade do |t|
@@ -218,6 +229,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_012403) do
   add_foreign_key "doses", "schedules"
   add_foreign_key "medications", "patient_profiles"
   add_foreign_key "patient_profiles", "users"
+  add_foreign_key "pharmacies", "patient_profiles"
   add_foreign_key "schedules", "medications"
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

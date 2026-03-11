@@ -15,5 +15,6 @@ Rails.application.routes.draw do
     get "dashboard", to: "dashboard#index", as: :dashboard
     root "dashboard#index"
     get "adherence", to: "adherence#index", as: :adherence
+    resource :pharmacy, only: [:show, :new, :create, :edit, :update]
   end
 end

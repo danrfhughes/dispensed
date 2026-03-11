@@ -1,6 +1,7 @@
 class PatientProfile < ApplicationRecord
   belongs_to :user
   has_many :medications, dependent: :destroy
+  has_one :pharmacy, dependent: :destroy
 
   validates :nhs_number, format: { with: /\A\d{10}\z/, message: "must be 10 digits" }, allow_blank: true
   validates :nhs_number, uniqueness: true, allow_blank: true

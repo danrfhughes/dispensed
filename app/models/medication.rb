@@ -23,4 +23,9 @@ class Medication < ApplicationRecord
   def needs_reorder?
     days_until_reorder && days_until_reorder <= 0
   end
+
+  def days_until_supply_ends
+    return nil unless last_dispensed_on && days_supply
+    (last_dispensed_on + days_supply.days - Date.today).to_i
+  end
 end
