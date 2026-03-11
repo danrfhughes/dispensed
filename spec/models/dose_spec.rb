@@ -23,6 +23,14 @@ RSpec.describe Dose, type: :model do
     end
   end
 
+  describe '#mark_missed!' do
+    it 'marks the dose as missed' do
+      dose = create(:dose)
+      dose.mark_missed!
+      expect(dose.status).to eq("missed")
+    end
+  end
+
   describe '.for_date' do
     it 'returns doses scheduled for the given date' do
       date = Date.new(2026, 3, 11)
