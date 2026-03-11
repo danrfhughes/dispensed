@@ -1,0 +1,43 @@
+<div class="flex justify-between items-center mb-6">
+  <h1 class="text-2xl font-semibold text-gray-800">My Medications</h1>
+  <%= link_to "Add medication", new_medication_path, class: "bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700" %>
+</div>
+
+<% if @medications.empty? %>
+  <p class="text-gray-500 text-sm">No active medications. <%= link_to "Add one", new_medication_path, class: "text-blue-600 hover:underline" %>.</p>
+<% else %>
+  <div class="space-y-3">
+    <% @medications.each do |med| %>
+      <div class="bg-white rounded border border-gray-200 px-4 py-3 flex justify-between items-center">
+        <div>
+          <%= link_to med.name, medication_path(med), class: "font-medium text-gray-800 hover:text-blue-600" %>
+          <p class="text-sm text-gray-500"><%= [med.dose, med.form].compact.join(" · ") %></p>
+          <% if med.needs_reorder? %>
+            <p class="text-xs text-red-600 mt-1">⚠ Reorder overdue</p>
+          <% elsif med.days_until_reorder && med.days_until_reorder <= 5 %>
+            <p class="text-xs text-amber-600 mt-1">Reorder in <%= med.days_until_reorder %> days</p>
+          <% end %>
+        </div>
+        <div class="flex gap-3 text-sm">
+          <%= link_to "Schedules", medication_path(med), class: "text-blue-600 hover:underline" %>
+          <%= link_to "Edit", edit_medication_path(med), class: "text-blue-600 hover:underline" %>
+          <%= button_to "Archive", medication_path(med), method: :delete, class: "text-gray-400 hover:text-red-500", data: { turbo_confirm: "Archive #{med.name}?" } %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% end %>
+
+<% if @archived.any? %>
+  <div class="mt-10">
+    <h2 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Archived</h2>
+    <div class="space-y-2">
+      <% @archived.each do |med| %>
+        <div class="bg-gray-50 rounded border border-gray-100 px-4 py-2 flex justify-between items-center">
+          <p class="text-sm text-gray-400"><%= med.name %> · <%= med.dose %></p>
+          <%= link_to "Restore", edit_medication_path(med), class: "text-xs text-blue-500 hover:underline" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% end %>

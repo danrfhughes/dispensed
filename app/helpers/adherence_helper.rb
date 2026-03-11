@@ -1,0 +1,2 @@
+module AdherenceHelper
+end

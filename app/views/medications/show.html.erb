@@ -1,0 +1,59 @@
+<div class="flex justify-between items-center mb-6">
+  <div>
+    <h1 class="text-2xl font-semibold text-gray-800"><%= @medication.name %></h1>
+    <p class="text-sm text-gray-500 mt-1"><%= [@medication.dose, @medication.form].compact.join(" · ") %></p>
+  </div>
+  <div class="flex gap-3">
+    <%= link_to "Edit", edit_medication_path(@medication), class: "text-sm text-blue-600 hover:underline" %>
+    <%= link_to "Back", medications_path, class: "text-sm text-gray-500 hover:underline" %>
+  </div>
+</div>
+
+<% if @medication.notes.present? %>
+  <p class="text-sm text-gray-600 mb-6"><%= @medication.notes %></p>
+<% end %>
+
+<div class="grid grid-cols-3 gap-4 mb-8 text-sm">
+  <div class="bg-gray-50 rounded p-3">
+    <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Days supply</p>
+    <p class="font-medium text-gray-700"><%= @medication.days_supply %> days</p>
+  </div>
+  <div class="bg-gray-50 rounded p-3">
+    <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Last dispensed</p>
+    <p class="font-medium text-gray-700"><%= @medication.last_dispensed_on&.strftime("%d %b %Y") || "—" %></p>
+  </div>
+  <div class="bg-gray-50 rounded p-3">
+    <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Started</p>
+    <p class="font-medium text-gray-700"><%= @medication.start_date&.strftime("%d %b %Y") || "—" %></p>
+  </div>
+</div>
+
+<div class="flex justify-between items-center mb-3">
+  <h2 class="text-base font-semibold text-gray-700">Schedules</h2>
+  <%= link_to "Add schedule", new_medication_schedule_path(@medication), class: "text-sm text-blue-600 hover:underline" %>
+</div>
+
+<% active_schedules = @medication.schedules.active.order(:time_of_day) %>
+<% if active_schedules.empty? %>
+  <p class="text-sm text-gray-400">No schedules yet. <%= link_to "Add one", new_medication_schedule_path(@medication), class: "text-blue-600 hover:underline" %>.</p>
+<% else %>
+  <div class="space-y-2">
+    <% active_schedules.each do |schedule| %>
+      <div class="bg-white border border-gray-200 rounded px-4 py-3 flex justify-between items-center">
+        <div>
+          <p class="font-medium text-gray-800"><%= schedule.time_of_day.strftime("%-I:%M %p") %></p>
+          <p class="text-sm text-gray-500"><%= schedule.days_label %></p>
+          <% if schedule.instructions.present? %>
+            <p class="text-xs text-gray-400 mt-1"><%= schedule.instructions %></p>
+          <% end %>
+        </div>
+        <div class="flex gap-3 text-sm">
+          <%= link_to "Edit", edit_medication_schedule_path(@medication, schedule), class: "text-blue-600 hover:underline" %>
+          <%= button_to "Remove", medication_schedule_path(@medication, schedule), method: :delete,
+              class: "text-gray-400 hover:text-red-500",
+              data: { turbo_confirm: "Remove this schedule? Past doses will be kept." } %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% end %>

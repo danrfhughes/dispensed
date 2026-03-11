@@ -1,0 +1,70 @@
+<%= form_with model: [@medication, schedule], class: "space-y-4" do |f| %>
+  <% if schedule.errors.any? %>
+    <div class="p-3 bg-red-100 text-red-700 rounded text-sm">
+      <% schedule.errors.full_messages.each do |msg| %>
+        <p><%= msg %></p>
+      <% end %>
+    </div>
+  <% end %>
+
+  <div>
+    <%= f.label :time_of_day, "Time", class: "block text-sm font-medium text-gray-700 mb-1" %>
+    <%= f.time_field :time_of_day, class: "w-full border border-gray-300 rounded px-3 py-2 text-sm" %>
+  </div>
+
+  <% is_daily = schedule.days_of_week == "daily" || schedule.days_of_week.blank? %>
+
+  <div>
+    <%= f.label :days_of_week, "Frequency", class: "block text-sm font-medium text-gray-700 mb-2" %>
+    <div class="space-y-2">
+      <label class="flex items-center gap-2 text-sm text-gray-700">
+        <input type="radio" name="schedule[days_of_week]" value="daily" id="freq_daily"
+          class="accent-blue-600" <%= is_daily ? "checked" : "" %>>
+        Daily
+      </label>
+      <label class="flex items-center gap-2 text-sm text-gray-700">
+        <input type="radio" name="schedule[days_of_week]" value="specific" id="freq_specific"
+          class="accent-blue-600" <%= is_daily ? "" : "checked" %>>
+        Specific days
+      </label>
+      <div id="specific-days-container" class="<%= is_daily ? 'hidden' : '' %> pl-1 pt-1">
+        <div class="flex flex-wrap gap-3">
+          <% Schedule::DAYS.reject { |d| d == "daily" }.each do |day| %>
+            <label class="flex items-center gap-1 text-sm text-gray-700">
+              <input type="checkbox" name="schedule[days_of_week_multi][]" value="<%= day %>"
+                class="accent-blue-600"
+                <%= schedule.days_of_week.split(",").include?(day) ? "checked" : "" %>>
+              <%= day.capitalize %>
+            </label>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <%= f.label :instructions, "Instructions (optional)", class: "block text-sm font-medium text-gray-700 mb-1" %>
+    <%= f.text_field :instructions, placeholder: "e.g. Take with food", class: "w-full border border-gray-300 rounded px-3 py-2 text-sm" %>
+  </div>
+
+  <%= f.submit class: "bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 cursor-pointer" %>
+  <%= link_to "Cancel", medication_path(@medication), class: "ml-3 text-sm text-gray-500 hover:underline" %>
+<% end %>
+
+<script>
+  (function() {
+    const daily = document.getElementById('freq_daily');
+    const specific = document.getElementById('freq_specific');
+    const container = document.getElementById('specific-days-container');
+    const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+
+    daily.addEventListener('change', function() {
+      container.classList.add('hidden');
+      checkboxes.forEach(cb => cb.checked = false);
+    });
+
+    specific.addEventListener('change', function() {
+      container.classList.remove('hidden');
+    });
+  })();
+</script>

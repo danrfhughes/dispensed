@@ -1,0 +1,12 @@
+<% if data[:scheduled] == 0 %>
+  <span class="text-gray-300 text-xs">No data</span>
+<% else %>
+  <% pct = data[:percentage] %>
+  <% colour = pct >= 80 ? "text-green-600" : pct >= 50 ? "text-amber-500" : "text-red-500" %>
+  <span class="text-lg font-semibold <%= colour %>"><%= pct %>%</span>
+  <p class="text-xs text-gray-400"><%= data[:taken] %>/<%= data[:scheduled] %> doses</p>
+  <% if data[:on_time_percentage] %>
+    <% timing_colour = data[:on_time_percentage] >= 80 ? "text-green-500" : data[:on_time_percentage] >= 50 ? "text-amber-500" : "text-red-400" %>
+    <p class="text-xs <%= timing_colour %> mt-0.5"><%= data[:on_time_percentage] %>% on time</p>
+  <% end %>
+<% end %>
