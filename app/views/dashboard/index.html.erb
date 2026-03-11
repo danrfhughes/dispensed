@@ -30,6 +30,11 @@
   }
   updateTime();
   setInterval(updateTime, 60000);
+
+  // Close dose dialog when clicking the backdrop
+  document.addEventListener('click', (e) => {
+    if (e.target.tagName === 'DIALOG') e.target.close();
+  });
 </script>
 
 <%# Reorder alerts %>
@@ -53,7 +58,7 @@
         <tr class="border-b border-gray-200 bg-gray-50">
           <th class="text-left px-4 py-3 text-gray-600 font-medium w-52">Medication</th>
           <% @week_days.each do |day| %>
-            <th class="px-3 py-3 text-center font-medium min-w-[72px] <%= day == Date.current ? 'bg-blue-50 text-blue-700' : 'text-gray-500' %>">
+            <th class="px-3 py-3 text-center font-medium min-w-[80px] <%= day == Date.current ? 'bg-blue-50 text-blue-700' : 'text-gray-500' %>">
               <div class="text-xs uppercase tracking-wide"><%= day.strftime("%a") %></div>
               <div class="text-base font-semibold"><%= day.strftime("%-d") %></div>
             </th>
@@ -78,12 +83,6 @@
                 <%= link_to med.name, medication_path(med), class: "font-medium text-gray-800 hover:text-blue-600" %>
                 <div class="text-xs text-gray-400 mt-0.5"><%= med.dose %></div>
 
-                <% if today_pending %>
-                  <%= button_to "Take dose", take_dose_path(today_pending), method: :patch,
-                      form: { data: { turbo_confirm: "Taken #{med.name} #{med.dose}?" } },
-                      class: "mt-2 bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 cursor-pointer w-full" %>
-                <% end %>
-
                 <% active_schedules = med.schedules.active %>
                 <div class="mt-2">
                   <% if active_schedules.any? %>
@@ -103,9 +102,30 @@
               <%# Day cells %>
               <% @week_days.each do |day| %>
                 <% doses = @week_doses[[med.id, day]] || [] %>
-                <% times = med.schedules.active.select { |s| s.active_on?(day) }.map { |s| s.time_of_day.strftime("%H:%M") }.sort %>
+                <% active_day_schedules = med.schedules.active.select { |s| s.active_on?(day) } %>
+                <% times = active_day_schedules.map { |s| s.time_of_day.strftime("%H:%M") }.sort %>
                 <%
-                  cell_bg = if doses.any? { |d| d.status == "taken" }
+                  due_soon = day == Date.current && active_day_schedules.any? do |s|
+                    scheduled_at = Time.zone.parse("#{day} #{s.time_of_day.strftime('%H:%M')}")
+                    (scheduled_at - Time.current).abs <= 60.minutes
+                  end
+
+                  live_cell = due_soon && today_pending
+
+                  overdue = day == Date.current && today_pending && !live_cell &&
+                    active_day_schedules.any? do |s|
+                      Time.zone.parse("#{day} #{s.time_of_day.strftime('%H:%M')}") < Time.current
+                    end
+
+                  pending_cell = day == Date.current && today_pending && !live_cell
+
+                  cell_bg = if live_cell
+                    "bg-green-500"
+                  elsif overdue
+                    "bg-orange-50"
+                  elsif pending_cell
+                    "bg-blue-50"
+                  elsif doses.any? { |d| d.status == "taken" }
                     "bg-green-100"
                   elsif doses.any? { |d| d.status == "skipped" }
                     "bg-orange-100"
@@ -115,14 +135,62 @@
                     ""
                   end
                 %>
-                <td class="px-3 py-3 text-center align-middle <%= cell_bg %>">
-                  <% if times.any? %>
+                <td class="text-center align-middle <%= cell_bg %> <%= live_cell ? 'p-2' : 'px-2 py-2' %>">
+
+                  <% if live_cell %>
+                    <%# Within the hour: green cell, very-rounded white time box, white bold Taken? %>
+                    <div class="bg-white rounded-2xl py-3 px-2 mb-2">
+                      <% times.each do |t| %>
+                        <div class="text-sm font-medium text-gray-800"><%= t %></div>
+                      <% end %>
+                    </div>
+                    <button onclick="document.getElementById('dose-dialog-<%= today_pending.id %>').showModal()"
+                            class="font-bold text-white text-sm cursor-pointer hover:text-green-100">
+                      Taken?
+                    </button>
+
+                  <% elsif pending_cell %>
+                    <%# Outside the hour: cream cell, time on cream, orange pill at bottom %>
                     <% times.each do |t| %>
-                      <div class="text-xs font-medium text-gray-700"><%= t %></div>
+                      <div class="text-sm font-medium text-gray-700 mb-2"><%= t %></div>
                     <% end %>
+                    <button onclick="document.getElementById('dose-dialog-<%= today_pending.id %>').showModal()"
+                            class="bg-orange-400 text-white font-bold text-sm rounded-lg py-1.5 w-full cursor-pointer hover:bg-orange-500">
+                      Taken?
+                    </button>
+
                   <% else %>
-                    <span class="text-gray-200">–</span>
+                    <%# Standard cell — no pending dose %>
+                    <% if times.any? %>
+                      <% times.each do |t| %>
+                        <div class="text-xs font-medium text-gray-700"><%= t %></div>
+                      <% end %>
+                    <% else %>
+                      <span class="text-gray-200">–</span>
+                    <% end %>
                   <% end %>
+
+                  <%# Shared dialog — rendered once per medication in today's cell %>
+                  <% if day == Date.current && today_pending %>
+                    <dialog id="dose-dialog-<%= today_pending.id %>"
+                            class="rounded-lg border border-gray-200 shadow-xl p-0">
+                      <div class="p-4 min-w-[180px]">
+                        <p class="text-sm font-semibold text-gray-800 mb-1"><%= med.name %></p>
+                        <p class="text-xs text-gray-400 mb-4"><%= med.dose %></p>
+                        <div class="flex flex-col gap-2">
+                          <%= button_to "Taken", take_dose_path(today_pending), method: :patch,
+                              class: "bg-green-600 text-white px-3 py-2 rounded text-sm font-medium hover:bg-green-700 cursor-pointer w-full" %>
+                          <%= button_to "Skip today", skip_dose_path(today_pending), method: :patch,
+                              class: "bg-white text-gray-600 border border-gray-300 px-3 py-2 rounded text-sm hover:bg-gray-50 cursor-pointer w-full" %>
+                          <button onclick="this.closest('dialog').close()"
+                                  class="text-gray-400 text-xs hover:text-gray-600 cursor-pointer pt-1">
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </dialog>
+                  <% end %>
+
                 </td>
               <% end %>
 
