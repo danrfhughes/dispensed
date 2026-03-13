@@ -25,6 +25,7 @@ class Schedule < ApplicationRecord
   scope :active, -> { where(active: true) }
 
   after_create :generate_todays_dose
+  after_update :regenerate_doses_from_today
 
   def days_label
     return "Daily" if days_of_week == "daily"
@@ -67,6 +68,16 @@ class Schedule < ApplicationRecord
   end
 
   def generate_todays_dose
+    GenerateDailyDosesJob.new.perform(Date.current)
+  end
+
+  def regenerate_doses_from_today
+    return unless saved_change_to_time_of_day? || saved_change_to_days_of_week? || saved_change_to_routine_anchor?
+
+    doses.where(status: "pending")
+         .where("scheduled_for >= ?", Time.current.beginning_of_day)
+         .destroy_all
+
     GenerateDailyDosesJob.new.perform(Date.current)
   end
 

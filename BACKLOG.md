@@ -169,7 +169,12 @@ This means SCHED-1a's data model is FHIR-ready by design. The manual schedule fo
 **Complexity:** Low
 **Description:** GP practice and nominated pharmacy info currently displayed as separate cards on the dashboard. Move them into the teal hero banner alongside the greeting/name/NHS number for a cleaner, more NHS App-like layout.
 
-### UX-6: WCAG 2.2 AA accessibility audit
+### UX-6: Fix "Taken?" popup alignment
+**Priority:** P1
+**Complexity:** Low
+**Description:** The Taken/Skip/Cancel popup on the dashboard is misaligned — appears top-left of the viewport instead of anchored to the dose cell that was clicked. Should appear as an inline popover or modal centred on the triggering element.
+
+### UX-7: WCAG 2.2 AA accessibility audit
 **Priority:** P1
 **Complexity:** Medium
 **Research:** Design of Pill Boxes p4 ("treat WCAG 2.2 as the accessibility floor"); Feature Priority Matrix P0 (high-contrast UI, large tap targets >=44px)
@@ -310,6 +315,6 @@ This means SCHED-1a's data model is FHIR-ready by design. The manual schedule fo
 | Priority | Items | Theme |
 |----------|-------|-------|
 | P0 | SCHED-1a, SCHED-2, SCHED-3, UX-1, UX-2 | Core scheduling + verification loop |
-| P1 | NHS-1, NHS-2, SCHED-4, SCHED-5, UX-3, UX-4, UX-5, UX-6, CARE-1, CARE-2, INFRA-1, INFRA-2, INFRA-3, INFRA-4 | NHS foundation, accessibility, caregiver, infra |
+| P1 | NHS-1, NHS-2, SCHED-4, SCHED-5, UX-3, UX-4, UX-5, UX-6, UX-7, CARE-1, CARE-2, INFRA-1, INFRA-2, INFRA-3, INFRA-4 | NHS foundation, accessibility, caregiver, infra |
 | P2 | NHS-3, NHS-4, SCHED-1b, SCHED-1c, SCHED-6, NOTIFY-1–3, INSIGHT-1–2, INTENT-1, SAFETY-1–3, UNCOL-1 | Enrichment, routine customisation, notifications, clinical safety |
 | P3 | SCHED-1d, SCHED-1e, SCHED-1f, INTENT-2, SAFETY-4, UNCOL-2, UNCOL-3 | Advanced routines, education, DTAC, pharmacy-facing |

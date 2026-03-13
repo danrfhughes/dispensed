@@ -161,6 +161,95 @@ RSpec.describe Schedule, type: :model do
     end
   end
 
+  describe 'regenerate_doses_from_today (SCHED-2)' do
+    # Let the job run for real in these specs so regeneration actually creates doses
+    before { allow_any_instance_of(GenerateDailyDosesJob).to receive(:perform).and_call_original }
+
+    let(:medication) { create(:medication) }
+
+    it 'regenerates pending dose when time_of_day changes' do
+      schedule = create(:schedule, medication: medication, time_of_day: "08:00")
+      # Manually create today's dose (simulating what the job does)
+      dose = Dose.create!(schedule: schedule, medication: medication,
+                          scheduled_for: Time.zone.today.change(hour: 8, min: 0))
+
+      schedule.update!(time_of_day: "14:00")
+
+      expect(Dose.where(schedule: schedule).count).to eq(1)
+      expect(Dose.where(schedule: schedule).first.scheduled_for.hour).to eq(14)
+    end
+
+    it 'removes dose when schedule no longer active on today' do
+      today_name = Date.current.strftime("%A").downcase
+      schedule = create(:schedule, medication: medication, days_of_week: "daily")
+      Dose.create!(schedule: schedule, medication: medication,
+                   scheduled_for: Time.zone.today.change(hour: 8, min: 0))
+
+      other_day = (Schedule::DAYS - ["daily", today_name]).first
+      schedule.update!(days_of_week: other_day)
+
+      expect(Dose.where(schedule: schedule).count).to eq(0)
+    end
+
+    it 'regenerates dose when routine_anchor changes' do
+      schedule = create(:schedule, :routine, medication: medication)
+      Dose.create!(schedule: schedule, medication: medication,
+                   scheduled_for: Time.zone.today.change(hour: 8, min: 0))
+
+      schedule.update!(routine_anchor: "bedtime", time_of_day: nil)
+
+      doses = Dose.where(schedule: schedule)
+      expect(doses.count).to eq(1)
+      expect(doses.first.scheduled_for.hour).to eq(22)
+    end
+
+    it 'preserves taken doses when schedule is edited' do
+      schedule = create(:schedule, medication: medication, time_of_day: "08:00")
+      taken_dose = Dose.create!(schedule: schedule, medication: medication,
+                                scheduled_for: Time.zone.today.change(hour: 8, min: 0),
+                                status: "taken", taken_at: Time.current)
+
+      schedule.update!(time_of_day: "14:00")
+
+      expect(Dose.find(taken_dose.id).status).to eq("taken")
+      all_doses = Dose.where(schedule: schedule).order(:scheduled_for)
+      expect(all_doses.count).to eq(2)
+      expect(all_doses.first.status).to eq("taken")
+      expect(all_doses.last.status).to eq("pending")
+      expect(all_doses.last.scheduled_for.hour).to eq(14)
+    end
+
+    it 'preserves skipped doses when schedule is edited' do
+      schedule = create(:schedule, medication: medication, time_of_day: "08:00")
+      Dose.create!(schedule: schedule, medication: medication,
+                   scheduled_for: Time.zone.today.change(hour: 8, min: 0),
+                   status: "skipped")
+
+      schedule.update!(time_of_day: "14:00")
+
+      statuses = Dose.where(schedule: schedule).pluck(:status)
+      expect(statuses).to include("skipped")
+    end
+
+    it 'does not regenerate when only instructions change' do
+      schedule = create(:schedule, medication: medication, time_of_day: "08:00")
+      dose = Dose.create!(schedule: schedule, medication: medication,
+                          scheduled_for: Time.zone.today.change(hour: 8, min: 0))
+
+      expect { schedule.update!(instructions: "Take with water") }
+        .not_to change { Dose.where(schedule: schedule).pluck(:id, :scheduled_for) }
+    end
+
+    it 'does not regenerate when only food_relation changes' do
+      schedule = create(:schedule, :routine, medication: medication)
+      Dose.create!(schedule: schedule, medication: medication,
+                   scheduled_for: Time.zone.today.change(hour: 8, min: 0))
+
+      expect { schedule.update!(food_relation: "empty_stomach") }
+        .not_to change { Dose.where(schedule: schedule).pluck(:id, :scheduled_for) }
+    end
+  end
+
   describe 'no_overlapping_schedules validation' do
     let(:medication) { create(:medication) }
 
