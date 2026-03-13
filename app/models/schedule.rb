@@ -20,6 +20,7 @@ class Schedule < ApplicationRecord
   validates :food_relation, inclusion: { in: FOOD_RELATIONS }, allow_blank: true
   validate :no_overlapping_schedules
 
+  before_validation :normalize_routine_anchor
   before_validation :apply_anchor_default_time
 
   scope :active, -> { where(active: true) }
@@ -60,6 +61,10 @@ class Schedule < ApplicationRecord
   end
 
   private
+
+  def normalize_routine_anchor
+    self.routine_anchor = nil if routine_anchor.blank?
+  end
 
   def apply_anchor_default_time
     return unless routine_anchor.present? && time_of_day.blank?

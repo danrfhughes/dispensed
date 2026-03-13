@@ -223,10 +223,20 @@ This means SCHED-1a's data model is FHIR-ready by design. The manual schedule fo
 **Complexity:** Medium
 **Research:** Feature Priority Matrix P1 ("Medication schedule calendar view — helps planning and confidence"); Medication UI Patterns Pattern 4
 
-### INSIGHT-2: Regimen complexity visibility
+### INSIGHT-2: Schedule Complexity Score
 **Priority:** P2
 **Complexity:** Low
-**Research:** pill_box_heuristics.pdf §7.4 ("20.7% of pill box users did not know their own dosages — showing patients a clear view of cognitive burden has diagnostic and therapeutic value")
+**Description:** A simple, visible metric showing the patient how complex their current medication schedule is. Counts: (a) distinct dosing times per day, (b) active food-relation constraints, (c) medications per slot (flagging overcrowded slots). Displayed as a plain-language summary, e.g. "You take medications at 4 different times each day, with 2 food-timing requirements." Not clinical advice — a conversation starter for pharmacist medication reviews.
+**Strategic rationale:** NHS pharmacists conducting Structured Medication Reviews (SMRs) need evidence of real-world regimen complexity to justify simplification. Patients typically cannot articulate their own schedule burden — 20.7% of pill box users didn't know their own dosages. This score gives the pharmacist immediate visibility into consolidation opportunities, making the SMR more productive. If pharmacists find this data useful, they become an acquisition channel: recommending Dispensed because it generates data they need, not because it's "another reminder app."
+**Research:** pill_box_heuristics.pdf §7.4; SCHED-3 Complex Scheduling Research §8 (NHS SMR context), §10 (recommendations)
+
+### INSIGHT-3: SMR-ready adherence summary (shareable)
+**Priority:** P2
+**Complexity:** Medium
+**Description:** A one-page exportable/shareable summary designed for pharmacist medication reviews. Contains: Schedule Complexity Score, adherence rates per medication over 28 days (aligned to dispensing cycle), taken/missed/skipped breakdown by time-of-day slot, schedule change history, and any flagged food-relation conflicts. Format: printable HTML or PDF. The patient brings this to their SMR appointment (or shares it digitally).
+**Strategic rationale:** Pharmacists currently have no visibility into how patients actually take medications at home — only what was prescribed and dispensed. This summary bridges that gap with structured data the pharmacist can act on. Positions Dispensed as a clinical tool, not just a consumer app.
+**Depends on:** INSIGHT-2, SCHED-5 (schedule history)
+**Research:** SCHED-3 Complex Scheduling Research §8 (NHS SMR context); NICE NG5 (Medicines Optimisation); NHS Scotland 7-Steps Medication Review
 
 ---
 
@@ -261,16 +271,31 @@ This means SCHED-1a's data model is FHIR-ready by design. The manual schedule fo
 **Complexity:** High
 
 ### SAFETY-4: DTAC assessment
-**Priority:** P3
+**Priority:** P1 (elevated from P3 — hard prerequisite for any NHS procurement conversation)
 **Complexity:** Medium
+**Description:** Complete the DTAC self-assessment against all five domains (clinical safety, data protection, technical security, interoperability, usability/accessibility). Can begin before app is feature-complete — the assessment documents the product's posture and roadmap, not just current state. DTAC is the gateway: without it, no commissioner or provider will enter procurement discussions.
+**Depends on:** SAFETY-2 (DCB0129), SAFETY-3 (DSPT), SAFETY-5 (Cyber Essentials) — all feed into DTAC evidence
+**Research:** INVEST-1a Commissioner-Provider Feature Requirements §6 (Compliance Gateway)
+
+### SAFETY-5: Cyber Essentials (Plus) certification
+**Priority:** P1 (required as part of DTAC)
+**Complexity:** Medium
+**Description:** Obtain NCSC-backed Cyber Essentials certification (and ideally Plus). Baseline cybersecurity requirement for all NHS suppliers. Covers: firewalls, secure configuration, user access control, malware protection, patch management. The assessment is conducted by an accredited body; Plus adds a hands-on technical verification. Required as evidence for DTAC domain 3 (technical security).
+**Research:** INVEST-1a Commissioner-Provider Feature Requirements §6 (Compliance Gateway)
+
+### SAFETY-6: DPIA (Data Protection Impact Assessment)
+**Priority:** P2
+**Complexity:** Medium
+**Description:** ICO-required assessment for processing health data at scale. Implicit in DSPT but should be an explicit deliverable with its own sign-off. Covers: lawful basis for processing (likely legitimate interests + explicit consent for health data under UK GDPR Article 9), data flows, retention policy, rights of data subjects, risk assessment. Needed before live patient data flows in production.
 
 ---
 
 ## EPIC: Infrastructure
 
-### INFRA-1: Local dev → PostgreSQL (replace SQLite)
+### INFRA-1: Local dev → PostgreSQL (replace SQLite) ✅
 **Priority:** P1
 **Complexity:** Low
+**Status:** COMPLETE — pg gem, database.yml all PostgreSQL, local databases running.
 
 ### INFRA-2: Staging environment
 **Priority:** P1
@@ -284,7 +309,25 @@ This means SCHED-1a's data model is FHIR-ready by design. The manual schedule fo
 ### INFRA-4: Full BDD/Capybara test coverage
 **Priority:** P1
 **Complexity:** Medium
-**Description:** Comprehensive integration test suite using Capybara feature specs. Cover all user-facing flows end-to-end: sign up, sign in (email + NHS Login), dashboard interaction (mark taken/skipped), medication CRUD, schedule CRUD, adherence view, reorder warnings, archived medications, GP/pharmacy info cards. Ensure all happy paths and key error paths are exercised through the browser stack.
+**Description:** Comprehensive integration test suite using Capybara system specs (rack_test driver). Cover all user-facing flows end-to-end: sign up, sign in (email + NHS Login), dashboard interaction (mark taken/skipped), medication CRUD, schedule CRUD, adherence view, reorder warnings, archived medications, GP/pharmacy info cards. Ensure all happy paths and key error paths are exercised through the browser stack.
+
+### INFRA-4a: JS-dependent Capybara specs (Selenium)
+**Priority:** P2
+**Complexity:** Medium
+**Depends on:** INFRA-4
+**Description:** Add Selenium/headless Chrome driver for system specs that require JavaScript execution. Covers: schedule form radio/checkbox toggles (routine anchor vs time_of_day conditional display, specific-days checkboxes), taken/skip popup interactions, any Turbo Frame/Stream behaviour.
+
+### INFRA-4b: Dose regeneration E2E system spec
+**Priority:** P2
+**Complexity:** Low
+**Depends on:** INFRA-4
+**Description:** End-to-end system spec verifying that editing a schedule (time, days, routine anchor) through the browser triggers dose regeneration. Currently covered by model specs (SCHED-2) but not exercised through the full stack.
+
+### INFRA-4c: Timezone edge case specs
+**Priority:** P2
+**Complexity:** Medium
+**Depends on:** INFRA-4, SCHED-6
+**Description:** System and unit specs covering timezone handling: UTC storage with London display, daylight saving transitions, dose scheduling near midnight, week view crossing day boundaries.
 
 ---
 
@@ -310,11 +353,46 @@ This means SCHED-1a's data model is FHIR-ready by design. The manual schedule fo
 
 ---
 
+## EPIC: Product Investment Case
+
+> **Research ref:** Digital_Medication_Adherence_Investment_Case.docx (system-level health economics case — establishes the £400m–£930m annual cost of non-adherence); SCHED-3 Complex Scheduling Research §8 (NHS SMR context, pharmacist-as-acquisition-channel thesis)
+
+### INVEST-1: Commissioner/Provider product investment case for Dispensed
+**Priority:** P2
+**Complexity:** High (iterative — research-heavy, multiple drafts expected)
+**Description:** A product-level investment case connecting Dispensed's specific features to the cost savings quantified in the existing system-level health economics document. Target audience: NHS ICB commissioners and provider trust decision-makers. Must answer: "Why commission/fund Dispensed specifically, rather than any other adherence tool?" Structured around three value propositions: (a) patient-facing adherence improvement (routine-anchored scheduling, verification-first UX, habit formation), (b) pharmacist workflow integration (SMR-ready adherence summaries, Schedule Complexity Score, adherence data pharmacists can act on), (c) population-level intelligence (aggregated adherence data segmented by condition, medication class, demographic — commissioner-grade insight into where non-adherence costs are concentrated). Must include: competitive differentiation (NHS Login, FHIR alignment, routine-anchor model, UK-specific dispensing cycle awareness), deployment model, indicative pricing/commissioning structure, and modelled ROI using figures from the existing investment case.
+**Approach:** Iterative. Research phase first (INVEST-1a), then drafting (INVEST-1b), then review cycles.
+**Depends on:** Existing system-level investment case (Research folder); INSIGHT-2, INSIGHT-3 (pharmacist integration features); research into commissioner/provider feature requirements (INVEST-1a)
+**Research:** Digital_Medication_Adherence_Investment_Case.docx; SCHED-3 Complex Scheduling Research; Feature Priority Matrix; pill_box_heuristics.pdf
+
+### INVEST-1a: Research — commissioner/provider feature requirements
+**Priority:** P2
+**Complexity:** Medium
+**Status:** In progress
+**Description:** Research what specific features and data outputs NHS commissioners (ICBs) and providers (trusts, community pharmacy) would need from a medication adherence platform to justify commissioning it. Includes: population-level adherence dashboards, condition/medication-class segmentation, integration with existing NHS analytics (FDP, CQRS, NHSBSA dispensing data), clinical safety compliance (DCB0129, DTAC, DSPT), data governance and IG requirements, and evidence of cost-effectiveness. Also identify which features Dispensed already has or is close to having that tick these boxes.
+
+---
+
+## Prioritisation Framework
+
+*Added: 2026-03-13*
+
+| Priority | Criteria | Test |
+|----------|----------|------|
+| **P0** | **"The app doesn't work without this."** Core loop functionality — can a user add a medication, set a schedule, see what's due, and mark it taken? | Would a real user abandon the app on day one if this were missing? |
+| **P1** | **"The app works but can't grow without this."** Two sub-types: (a) features that remove barriers to adoption (setup friction, trust, identity); (b) hard prerequisites that block an entire strategic pathway (compliance, infrastructure). | Does the absence of this feature block user acquisition, or block a future route to market entirely? |
+| **P2** | **"Makes the app significantly better or opens a new value stream."** Retention features, new user segments (pharmacists, caregivers), enrichment, and strategic research. The app functions without these and no pathway is blocked by their absence. | Does this improve retention, open a new audience, or generate strategic insight — but the app still works without it? |
+| **P3** | **"Good idea, park until there's demand or bandwidth."** Features where user need is speculative, or that serve a market segment that doesn't yet exist. | Is there concrete evidence of user demand, or is this anticipating a future need? |
+
+**Override rule — Dependency elevation:** If Feature X is a prerequisite for Features Y and Z, X gets elevated regardless of its standalone value. Example: SAFETY-4 (DTAC) moved from P3 to P1 because the entire commissioner strategy depends on it passing.
+
+---
+
 ## Priority Summary
 
 | Priority | Items | Theme |
 |----------|-------|-------|
 | P0 | SCHED-1a, SCHED-2, SCHED-3, UX-1, UX-2 | Core scheduling + verification loop |
-| P1 | NHS-1, NHS-2, SCHED-4, SCHED-5, UX-3, UX-4, UX-5, UX-6, UX-7, CARE-1, CARE-2, INFRA-1, INFRA-2, INFRA-3, INFRA-4 | NHS foundation, accessibility, caregiver, infra |
-| P2 | NHS-3, NHS-4, SCHED-1b, SCHED-1c, SCHED-6, NOTIFY-1–3, INSIGHT-1–2, INTENT-1, SAFETY-1–3, UNCOL-1 | Enrichment, routine customisation, notifications, clinical safety |
-| P3 | SCHED-1d, SCHED-1e, SCHED-1f, INTENT-2, SAFETY-4, UNCOL-2, UNCOL-3 | Advanced routines, education, DTAC, pharmacy-facing |
+| P1 | NHS-1, NHS-2, SCHED-4, SCHED-5, UX-3, UX-4, UX-5, UX-6, UX-7, CARE-1, CARE-2, INFRA-1, INFRA-2, INFRA-3, INFRA-4, SAFETY-4, SAFETY-5 | NHS foundation, accessibility, caregiver, infra, compliance gateway |
+| P2 | NHS-3, NHS-4, SCHED-1b, SCHED-1c, SCHED-6, NOTIFY-1–3, INSIGHT-1–3, INTENT-1, SAFETY-1–3, SAFETY-6, UNCOL-1, INVEST-1/1a, INFRA-4a, INFRA-4b, INFRA-4c | Enrichment, routine customisation, notifications, clinical safety, pharmacist integration, investment case, advanced test coverage |
+| P3 | SCHED-1d, SCHED-1e, SCHED-1f, INTENT-2, UNCOL-2, UNCOL-3 | Advanced routines, education, pharmacy-facing |
