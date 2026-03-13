@@ -6,6 +6,7 @@ class GenerateDailyDosesJob < ApplicationJob
       user.medications.active.includes(:schedules).find_each do |medication|
         medication.schedules.active.each do |schedule|
           next unless schedule.active_on?(date)
+          next unless schedule.time_of_day.present?
 
           scheduled_for = DateTime.new(
             date.year,

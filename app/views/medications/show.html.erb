@@ -4,7 +4,7 @@
     <p class="text-sm text-gray-500 mt-1"><%= [@medication.dose, @medication.form].compact.join(" · ") %></p>
   </div>
   <div class="flex gap-3">
-    <%= link_to "Edit", edit_medication_path(@medication), class: "text-sm text-blue-600 hover:underline" %>
+    <%= link_to "Edit", edit_medication_path(@medication), class: "text-sm text-teal-700 hover:underline" %>
     <%= link_to "Back", medications_path, class: "text-sm text-gray-500 hover:underline" %>
   </div>
 </div>
@@ -30,12 +30,12 @@
 
 <div class="flex justify-between items-center mb-3">
   <h2 class="text-base font-semibold text-gray-700">Schedules</h2>
-  <%= link_to "Add schedule", new_medication_schedule_path(@medication), class: "text-sm text-blue-600 hover:underline" %>
+  <%= link_to "Add schedule", new_medication_schedule_path(@medication), class: "text-sm text-teal-700 hover:underline" %>
 </div>
 
 <% active_schedules = @medication.schedules.active.order(:time_of_day) %>
 <% if active_schedules.empty? %>
-  <p class="text-sm text-gray-400">No schedules yet. <%= link_to "Add one", new_medication_schedule_path(@medication), class: "text-blue-600 hover:underline" %>.</p>
+  <p class="text-sm text-gray-400">No schedules yet. <%= link_to "Add one", new_medication_schedule_path(@medication), class: "text-teal-700 hover:underline" %>.</p>
 <% else %>
   <div class="space-y-2">
     <% active_schedules.each do |schedule| %>
@@ -48,7 +48,7 @@
           <% end %>
         </div>
         <div class="flex gap-3 text-sm">
-          <%= link_to "Edit", edit_medication_schedule_path(@medication, schedule), class: "text-blue-600 hover:underline" %>
+          <%= link_to "Edit", edit_medication_schedule_path(@medication, schedule), class: "text-teal-700 hover:underline" %>
           <%= button_to "Remove", medication_schedule_path(@medication, schedule), method: :delete,
               class: "text-gray-400 hover:text-red-500",
               data: { turbo_confirm: "Remove this schedule? Past doses will be kept." } %>

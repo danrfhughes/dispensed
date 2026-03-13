@@ -272,9 +272,19 @@ Devise.setup do |config|
   config.sign_out_via = :delete
 
   # ==> OmniAuth
-  # Add a new OmniAuth provider. Check the wiki for more information on setting
-  # up on your models and hooks.
-  # config.omniauth :github, 'APP_ID', 'APP_SECRET', scope: 'user,public_repo'
+  # NHS Login via custom OpenID Connect strategy (private_key_jwt / RS512)
+  require "omniauth/strategies/nhs_login"
+
+  nhs_creds = Rails.application.credentials.nhs_login || {}
+  config.omniauth :nhslogin,
+    strategy_class: OmniAuth::Strategies::NhsLogin,
+    scope: [:openid, :profile, :email],
+    discovery: !Rails.env.test?,
+    issuer: nhs_creds[:issuer] || "https://oidc.mock.signin.nhs.uk/",
+    client_options: {
+      identifier: nhs_creds[:client_id] || "dispensed-not-configured",
+      redirect_uri: "#{ENV.fetch('APP_URL', 'http://localhost:3000')}/users/auth/nhslogin/callback"
+    }
 
   # ==> Warden configuration
   # If you want to use other strategies, that are not supported by Devise, or

@@ -1,4 +1,4 @@
-<%= form_with model: [@medication, schedule], class: "space-y-4" do |f| %>
+<%= form_with model: [@medication, schedule], class: "space-y-5" do |f| %>
   <% if schedule.errors.any? %>
     <div class="p-3 bg-red-100 text-red-700 rounded text-sm">
       <% schedule.errors.full_messages.each do |msg| %>
@@ -7,24 +7,88 @@
     </div>
   <% end %>
 
+  <%# Step 1: When do you take this? %>
   <div>
-    <%= f.label :time_of_day, "Time", class: "block text-sm font-medium text-gray-700 mb-1" %>
-    <%= f.time_field :time_of_day, class: "w-full border border-gray-300 rounded px-3 py-2 text-sm" %>
+    <p class="block text-sm font-medium text-gray-700 mb-2">When do you take this?</p>
+
+    <div class="space-y-2" id="anchor-options">
+      <% primary = [["breakfast", "With breakfast", "08:00"], ["bedtime", "Before bed", "22:00"]] %>
+      <% secondary = [["waking", "When you wake up", "07:00"], ["midday", "Around midday", "12:00"], ["evening_meal", "With your evening meal", "18:00"]] %>
+
+      <% primary.each do |key, label, default_time| %>
+        <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-teal-400 transition-colors has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
+          <input type="radio" name="schedule[routine_anchor]" value="<%= key %>"
+            class="accent-teal-700" data-default-time="<%= default_time %>" data-anchor="true"
+            <%= schedule.routine_anchor == key ? "checked" : "" %>>
+          <span class="text-sm font-medium text-gray-800"><%= label %></span>
+        </label>
+      <% end %>
+
+      <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-teal-400 transition-colors has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
+        <input type="radio" name="schedule[routine_anchor]" value=""
+          class="accent-teal-700" data-anchor="false"
+          <%= schedule.routine_anchor.blank? ? "checked" : "" %>>
+        <span class="text-sm font-medium text-gray-800">At a specific time</span>
+      </label>
+
+      <div id="more-anchors" class="<%= secondary.any? { |k, _, _| schedule.routine_anchor == k } ? '' : 'hidden' %> space-y-2">
+        <% secondary.each do |key, label, default_time| %>
+          <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-teal-400 transition-colors has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
+            <input type="radio" name="schedule[routine_anchor]" value="<%= key %>"
+              class="accent-teal-700" data-default-time="<%= default_time %>" data-anchor="true"
+              <%= schedule.routine_anchor == key ? "checked" : "" %>>
+            <span class="text-sm font-medium text-gray-800"><%= label %></span>
+          </label>
+        <% end %>
+      </div>
+
+      <button type="button" id="show-more-anchors" class="text-xs text-teal-600 hover:underline pl-1"
+        style="<%= secondary.any? { |k, _, _| schedule.routine_anchor == k } ? 'display:none' : '' %>">
+        More options &darr;
+      </button>
+    </div>
   </div>
 
+  <%# Step 2: Food relation (shown for routine anchors) %>
+  <div id="food-relation-section" class="<%= schedule.routine_anchor.present? ? '' : 'hidden' %>">
+    <p class="block text-sm font-medium text-gray-700 mb-2">Taken with food?</p>
+    <div class="space-y-1">
+      <% [["with_food", "With food"], ["before_food", "Before food (empty stomach)"], ["empty_stomach", "On an empty stomach"], ["", "Doesn't matter"]].each do |value, label| %>
+        <label class="flex items-center gap-2 text-sm text-gray-700">
+          <input type="radio" name="schedule[food_relation]" value="<%= value %>"
+            class="accent-teal-700"
+            <%= (schedule.food_relation.to_s == value || (schedule.food_relation.blank? && value == "")) ? "checked" : "" %>>
+          <%= label %>
+        </label>
+      <% end %>
+    </div>
+  </div>
+
+  <%# Step 3: Time %>
+  <div>
+    <label id="time-label" class="block text-sm font-medium text-gray-700 mb-1">
+      <%= schedule.routine_anchor.present? ? "Usual time" : "Time" %>
+    </label>
+    <%= f.time_field :time_of_day, class: "w-full border border-gray-300 rounded px-3 py-2 text-sm" %>
+    <p id="time-hint" class="text-xs text-gray-400 mt-1 <%= schedule.routine_anchor.present? ? '' : 'hidden' %>">
+      Pre-filled from your routine — adjust if needed
+    </p>
+  </div>
+
+  <%# Step 4: Frequency %>
   <% is_daily = schedule.days_of_week == "daily" || schedule.days_of_week.blank? %>
 
   <div>
-    <%= f.label :days_of_week, "Frequency", class: "block text-sm font-medium text-gray-700 mb-2" %>
+    <p class="block text-sm font-medium text-gray-700 mb-2">Frequency</p>
     <div class="space-y-2">
       <label class="flex items-center gap-2 text-sm text-gray-700">
         <input type="radio" name="schedule[days_of_week]" value="daily" id="freq_daily"
-          class="accent-blue-600" <%= is_daily ? "checked" : "" %>>
+          class="accent-teal-700" <%= is_daily ? "checked" : "" %>>
         Daily
       </label>
       <label class="flex items-center gap-2 text-sm text-gray-700">
         <input type="radio" name="schedule[days_of_week]" value="specific" id="freq_specific"
-          class="accent-blue-600" <%= is_daily ? "" : "checked" %>>
+          class="accent-teal-700" <%= is_daily ? "" : "checked" %>>
         Specific days
       </label>
       <div id="specific-days-container" class="<%= is_daily ? 'hidden' : '' %> pl-1 pt-1">
@@ -32,8 +96,8 @@
           <% Schedule::DAYS.reject { |d| d == "daily" }.each do |day| %>
             <label class="flex items-center gap-1 text-sm text-gray-700">
               <input type="checkbox" name="schedule[days_of_week_multi][]" value="<%= day %>"
-                class="accent-blue-600"
-                <%= schedule.days_of_week.split(",").include?(day) ? "checked" : "" %>>
+                class="accent-teal-700"
+                <%= schedule.days_of_week.to_s.split(",").include?(day) ? "checked" : "" %>>
               <%= day.capitalize %>
             </label>
           <% end %>
@@ -42,29 +106,65 @@
     </div>
   </div>
 
+  <%# Step 5: Instructions %>
   <div>
     <%= f.label :instructions, "Instructions (optional)", class: "block text-sm font-medium text-gray-700 mb-1" %>
-    <%= f.text_field :instructions, placeholder: "e.g. Take with food", class: "w-full border border-gray-300 rounded px-3 py-2 text-sm" %>
+    <%= f.text_field :instructions, placeholder: "e.g. Swallow whole with water", class: "w-full border border-gray-300 rounded px-3 py-2 text-sm" %>
   </div>
 
-  <%= f.submit class: "bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 cursor-pointer" %>
+  <%= f.submit class: "text-white px-4 py-2 rounded text-sm cursor-pointer", style: "background-color: #5B8A7A;" %>
   <%= link_to "Cancel", medication_path(@medication), class: "ml-3 text-sm text-gray-500 hover:underline" %>
 <% end %>
 
 <script>
   (function() {
+    // Frequency toggle
     const daily = document.getElementById('freq_daily');
     const specific = document.getElementById('freq_specific');
-    const container = document.getElementById('specific-days-container');
-    const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+    const daysContainer = document.getElementById('specific-days-container');
+    const checkboxes = daysContainer.querySelectorAll('input[type="checkbox"]');
 
     daily.addEventListener('change', function() {
-      container.classList.add('hidden');
+      daysContainer.classList.add('hidden');
       checkboxes.forEach(cb => cb.checked = false);
     });
-
     specific.addEventListener('change', function() {
-      container.classList.remove('hidden');
+      daysContainer.classList.remove('hidden');
+    });
+
+    // Routine anchor handling
+    const anchorRadios = document.querySelectorAll('input[name="schedule[routine_anchor]"]');
+    const foodSection = document.getElementById('food-relation-section');
+    const timeField = document.querySelector('input[name="schedule[time_of_day]"]');
+    const timeLabel = document.getElementById('time-label');
+    const timeHint = document.getElementById('time-hint');
+    const moreBtn = document.getElementById('show-more-anchors');
+    const moreAnchors = document.getElementById('more-anchors');
+
+    moreBtn.addEventListener('click', function() {
+      moreAnchors.classList.remove('hidden');
+      moreBtn.style.display = 'none';
+    });
+
+    anchorRadios.forEach(function(radio) {
+      radio.addEventListener('change', function() {
+        const isRoutine = this.dataset.anchor === 'true';
+
+        if (isRoutine) {
+          foodSection.classList.remove('hidden');
+          timeLabel.textContent = 'Usual time';
+          timeHint.classList.remove('hidden');
+          timeField.value = this.dataset.defaultTime;
+        } else {
+          foodSection.classList.add('hidden');
+          timeLabel.textContent = 'Time';
+          timeHint.classList.add('hidden');
+          timeField.value = '';
+          document.querySelectorAll('input[name="schedule[food_relation]"]').forEach(function(r) {
+            r.checked = r.value === '';
+          });
+        }
+      });
     });
   })();
 </script>

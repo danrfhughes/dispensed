@@ -52,7 +52,39 @@ RSpec.describe "Schedules", type: :request do
       end
     end
 
-    context "with missing time" do
+    context "with a routine anchor and no explicit time" do
+      it "creates the schedule with the anchor default time" do
+        expect {
+          post medication_schedules_path(medication), params: {
+            schedule: { routine_anchor: "breakfast", days_of_week: "daily", time_of_day: "", instructions: "" }
+          }
+        }.to change(Schedule, :count).by(1)
+        expect(response).to redirect_to(medication_path(medication))
+        expect(Schedule.last.routine_anchor).to eq("breakfast")
+        expect(Schedule.last.time_of_day.strftime("%H:%M")).to eq("08:00")
+      end
+    end
+
+    context "with a routine anchor and explicit time" do
+      it "keeps the explicit time" do
+        post medication_schedules_path(medication), params: {
+          schedule: { routine_anchor: "breakfast", time_of_day: "09:30", days_of_week: "daily", instructions: "" }
+        }
+        expect(Schedule.last.time_of_day.strftime("%H:%M")).to eq("09:30")
+      end
+    end
+
+    context "with a routine anchor and food relation" do
+      it "saves both fields" do
+        post medication_schedules_path(medication), params: {
+          schedule: { routine_anchor: "breakfast", food_relation: "with_food", days_of_week: "daily", time_of_day: "", instructions: "" }
+        }
+        expect(Schedule.last.routine_anchor).to eq("breakfast")
+        expect(Schedule.last.food_relation).to eq("with_food")
+      end
+    end
+
+    context "with missing time and no routine anchor" do
       it "re-renders the form with a validation error" do
         post medication_schedules_path(medication), params: {
           schedule: { time_of_day: "", days_of_week: "daily", instructions: "" }

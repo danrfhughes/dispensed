@@ -1,6 +1,6 @@
 Rails.application.routes.draw do
   get "adherence/index"
-  devise_for :users
+  devise_for :users, controllers: { omniauth_callbacks: "users/omniauth_callbacks" }
 
   authenticate :user do
     resources :medications do
@@ -15,6 +15,6 @@ Rails.application.routes.draw do
     get "dashboard", to: "dashboard#index", as: :dashboard
     root "dashboard#index"
     get "adherence", to: "adherence#index", as: :adherence
-    resource :pharmacy, only: [:show, :new, :create, :edit, :update]
+    # Pharmacy routes removed — replaced by Organisation model (NHS-2)
   end
 end

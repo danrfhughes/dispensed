@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_11_095738) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_13_081913) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -47,35 +47,54 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_095738) do
     t.index ["patient_profile_id"], name: "index_medications_on_patient_profile_id"
   end
 
-  create_table "patient_profiles", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.date "date_of_birth"
-    t.string "fhir_id"
-    t.string "nhs_number"
-    t.datetime "updated_at", null: false
-    t.integer "user_id", null: false
-    t.index ["nhs_number"], name: "index_patient_profiles_on_nhs_number", unique: true, where: "(nhs_number IS NOT NULL)"
-    t.index ["user_id"], name: "index_patient_profiles_on_user_id", unique: true
-  end
-
-  create_table "pharmacies", force: :cascade do |t|
+  create_table "organisations", force: :cascade do |t|
+    t.boolean "active", default: true
     t.text "address"
     t.datetime "created_at", null: false
     t.string "email"
-    t.string "name"
-    t.bigint "patient_profile_id", null: false
+    t.string "name", null: false
+    t.string "ods_code", null: false
+    t.string "organisation_type"
     t.string "phone"
     t.datetime "updated_at", null: false
-    t.index ["patient_profile_id"], name: "index_pharmacies_on_patient_profile_id"
+    t.index ["ods_code"], name: "index_organisations_on_ods_code", unique: true
+    t.index ["organisation_type"], name: "index_organisations_on_organisation_type"
+  end
+
+  create_table "patient_profiles", force: :cascade do |t|
+    t.string "address_line_1"
+    t.string "address_line_2"
+    t.string "city"
+    t.datetime "created_at", null: false
+    t.date "date_of_birth"
+    t.datetime "demographics_fetched_at"
+    t.string "fhir_id"
+    t.string "first_name"
+    t.string "gender"
+    t.bigint "gp_organisation_id"
+    t.string "last_name"
+    t.string "nhs_login_identity_level"
+    t.string "nhs_number"
+    t.bigint "nominated_pharmacy_id"
+    t.string "phone"
+    t.string "postcode"
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["gp_organisation_id"], name: "index_patient_profiles_on_gp_organisation_id"
+    t.index ["nhs_number"], name: "index_patient_profiles_on_nhs_number", unique: true, where: "(nhs_number IS NOT NULL)"
+    t.index ["nominated_pharmacy_id"], name: "index_patient_profiles_on_nominated_pharmacy_id"
+    t.index ["user_id"], name: "index_patient_profiles_on_user_id", unique: true
   end
 
   create_table "schedules", force: :cascade do |t|
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.string "days_of_week", default: "daily", null: false
+    t.string "food_relation"
     t.string "instructions"
     t.integer "medication_id", null: false
-    t.time "time_of_day", null: false
+    t.string "routine_anchor"
+    t.time "time_of_day"
     t.datetime "updated_at", null: false
     t.index ["medication_id"], name: "index_schedules_on_medication_id"
   end
@@ -216,20 +235,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_095738) do
     t.datetime "created_at", null: false
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
+    t.string "provider"
     t.datetime "remember_created_at"
     t.datetime "reset_password_sent_at"
     t.string "reset_password_token"
     t.string "role", default: "patient", null: false
+    t.string "uid"
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true, where: "(provider IS NOT NULL)"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
   add_foreign_key "doses", "medications"
   add_foreign_key "doses", "schedules"
   add_foreign_key "medications", "patient_profiles"
+  add_foreign_key "patient_profiles", "organisations", column: "gp_organisation_id"
+  add_foreign_key "patient_profiles", "organisations", column: "nominated_pharmacy_id"
   add_foreign_key "patient_profiles", "users"
-  add_foreign_key "pharmacies", "patient_profiles"
   add_foreign_key "schedules", "medications"
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

@@ -2,7 +2,8 @@ class DashboardController < ApplicationController
   before_action :authenticate_user!
 
   def index
-    @medications = current_user.patient_profile.medications.active
+    @patient_profile = current_user.patient_profile
+    @medications = @patient_profile.medications.active
                                .includes(:schedules)
                                .order(:name)
 

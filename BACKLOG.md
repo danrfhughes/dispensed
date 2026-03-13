@@ -1,0 +1,315 @@
+# Dispensed — Product Backlog
+
+*Last updated: 2026-03-12*
+
+---
+
+## EPIC: NHS App Integration
+
+The NHS App has 37.4m registered users but stops at "prescription dispensed." Dispensed occupies the unserved gap from dispensed to taken. Integration eliminates manual medication setup — the single largest drop-off point in adherence apps.
+
+> **Research ref:** pill_box_heuristics.pdf §7 ("NHS App adjacency — currently unoccupied infrastructure"); Medication UI Patterns §Setup Layer ("manual setup is the largest drop-off point in adherence apps"); Investment Case §2.3 (post-discharge digital review as highest-priority intervention)
+
+### NHS-1: NHS Login (OmniAuth OIDC)
+**Priority:** P1 — Foundation (all other NHS items depend on this)
+**Complexity:** Medium
+**API:** NHS Login — OpenID Connect with `private_key_jwt` auth
+**Identity levels:** P0 (email only), P5 (verified demographics), P9 (full ID — needed for clinical data)
+**Scopes:** `openid`, `profile` (NHS number, surname, DOB at P5+), `profile_extended`, `gp_registration_details`
+**Onboarding:** Integration environment available with test patients on Spine; technical conformance then approval
+**Implementation:** OmniAuth strategy wrapping NHS Login OIDC; store NHS number + proofing level on User/PatientProfile
+**Notes:** P9 requires photo ID verification — expect conversion drop-off. Design for progressive step-up (start at P5, prompt P9 only when clinical data is needed).
+
+> **Research ref:** Feature Priority Matrix p2 ("Integration with pharmacy prescriptions — High impact, High complexity, P2"); Investment Case §3 Option 1 (post-discharge digital pathway requires identity verification)
+
+### NHS-2: Read Patient Demographics (PDS FHIR API)
+**Priority:** P1 — Eliminates manual profile entry
+**Complexity:** Low-Medium
+**API:** Personal Demographics Service (PDS) FHIR R4 — Patient resource
+**Auth:** User-restricted via NHS Login (P5+)
+**Returns:** Name, DOB, address, NHS number, registered GP (ODS code), nominated pharmacy (ODS code), contact details
+**Environments:** Sandbox, Integration, Production — all available
+**Onboarding:** Digital via NHS API platform; requires valid use case and legal basis
+**Implementation:** After NHS Login at P5+, call PDS to pre-populate PatientProfile (name, DOB, address). Reduces onboarding friction significantly.
+
+> **Research ref:** Medication UI Patterns §Mistake 2 ("Setup complexity — requiring drug name, dosage, schedule, instructions, refill info is a huge barrier"); pill_box_heuristics.pdf §1 ("the 'already loaded' dependency" — users offload knowledge to the system; the system must earn that trust by being accurate from the start)
+
+### NHS-3: Read Nominated Pharmacy (PDS FHIR API extension)
+**Priority:** P2
+**Complexity:** Low
+**API:** Same PDS FHIR API — `Extension-UKCore-NominatedPharmacy` on Patient resource
+**Returns:** ODS codes for P1 (preferred), P2 (appliance), P3 (temporary) nominations
+**Depends on:** NHS-2 (same API call)
+**Additional lookup:** ODS API or EPS Directory of Services to resolve ODS code to pharmacy name/address
+**Implementation:** Display nominated pharmacy on profile; enables future refill reminder features and pharmacy-patient linking.
+
+> **Research ref:** Feature Priority Matrix p1 ("Refill reminders — Medium impact, Low complexity, P1"); Investment Case §1.3 ("Community Pharmacy — management of complex dosette box regimens")
+
+### NHS-4: Read Prescribed Medication
+**Priority:** P2 — Highest-value but most complex; dependent on NHS API availability
+**Complexity:** High
+**APIs (three options, in order of feasibility):**
+
+| API | What it provides | Auth | Status for third-party apps |
+|-----|-----------------|------|-----------------------------|
+| Prescriptions for Patients FHIR | EPS prescription data (MedicationRequest, MedicationDispense) | NHS Login P9 | Unclear — may be limited rollout |
+| GP Connect Patient Facing Prescriptions | GP system medication list (acute + repeat) | NHS Login P9 + `gp_integration_credentials` | **Not onboarding new consumers** (NHS App only) |
+| EPS FHIR API | Full EPS backend (prescribe/dispense/query) | CIS2 / app-restricted | Not patient-facing |
+
+**Current reality:** GP Connect is closed to new third-party consumers. Prescriptions for Patients is the most viable route but availability is uncertain. Direct engagement with NHS England onboarding team required.
+
+**Implementation (when available):** Auto-import prescribed medications into Dispensed on first login, eliminating manual setup entirely. Map SNOMED/dm+d codes to medication records. Present for user confirmation before activating schedules.
+
+**FHIR → SCHED-1 mapping (added 2026-03-13):** FHIR MedicationRequest.dosageInstruction includes structured event timing codes that map directly to SCHED-1a's `routine_anchor` + `food_relation` fields. When NHS-4 delivers medication import, schedules can be auto-generated with correct routine anchors — no manual schedule setup needed.
+
+| FHIR timing code | Meaning | routine_anchor | food_relation |
+|---|---|---|---|
+| `WAKE` | On waking | `waking` | — |
+| `ACM` / `CM` / `PCM` | Before/at/after breakfast | `breakfast` | `before_food` / `with_food` / `after_food` |
+| `ACD` / `CD` / `PCD` | Before/at/after lunch | `midday` | `before_food` / `with_food` / `after_food` |
+| `ACV` / `CV` / `PCV` | Before/at/after evening meal | `evening_meal` | `before_food` / `with_food` / `after_food` |
+| `HS` | Before sleep | `bedtime` | — |
+
+This means SCHED-1a's data model is FHIR-ready by design. The manual schedule form is a stand-in for prescription data that doesn't yet exist in the app; once NHS-4 lands, the mapping is mechanical.
+
+**Fallback (immediate):** NHS dm+d drug database lookup for medication setup (already referenced in research as best practice). Reduces typing errors and enables pill imagery.
+
+> **Research ref:** Medication UI Patterns §Setup Layer Feature 1 ("Medication database lookup — RxNorm / NHS dm+d drug database; reduces errors, faster setup, enables pill imagery"); pill_box_heuristics.pdf §1 ("The undifferentiated tablet problem" — patients lose label context; auto-import preserves it); Feature Priority Matrix p2 ("Integration with pharmacy prescriptions — reduces setup errors but complex"); Investment Case §3 Option 1 ("older patients discharged with new or changed medicines, often with inadequate counselling")
+
+---
+
+## EPIC: Scheduling UX Overhaul
+
+> **Research ref:** Design of Pill Boxes p3 ("rigidity is a problem — only 14% of participants used time-based reminders"); pill_box_heuristics.pdf §5 ("habit strength is the strongest single predictor of adherence"); Medication UI Patterns §Mistake 1 ("Time-only reminders — older adults think in routine triggers")
+
+### SCHED-1: Routine-based reminders (anchor to meals/activities, not clock times)
+**Priority:** P0
+**Complexity:** Medium
+**Research:** Feature Priority Matrix rates this "Very High impact, P0." Gualtieri et al. 2024 found only 14% of older adults use time-based reminders; routine-linked triggers are more durable.
+**Research doc:** `Research/SCHED-1 Routine-Based Reminders Research.md`
+**MVP scope (SCHED-1a):** Two new columns (`routine_anchor`, `food_relation`), `time_of_day` nullable, five hardcoded anchors (waking/breakfast/midday/evening_meal/bedtime), form leads with routine selection, dashboard shows routine labels, wider "due now" window for anchored doses.
+
+### SCHED-1b: Per-anchor customisable time windows
+**Priority:** P2
+**Complexity:** Low
+**Description:** Add `window_start` and `window_end` columns to schedules, replacing the hardcoded `window_minutes` lookup. Lets users define their own flexibility window per routine anchor (e.g. "my breakfast window is 06:30–09:00").
+**Depends on:** SCHED-1a
+
+### SCHED-1c: Weekend routine time overrides (dedicated UI)
+**Priority:** P2
+**Complexity:** Medium
+**Description:** Dedicated UI for setting different routine times on weekends (e.g. breakfast at 07:00 weekdays, 09:00 weekends). Currently achievable by creating two schedules with specific days, but a streamlined UI would reduce friction. Medisafe offers this as a specific feature.
+**Depends on:** SCHED-1a
+
+### SCHED-1d: Auto-detect timing constraints from dm+d codes
+**Priority:** P3
+**Complexity:** High
+**Description:** When a medication has a dm+d code, auto-populate `food_relation` and suggest the appropriate routine anchor based on known prescribing requirements (e.g. levothyroxine → waking + empty_stomach, metformin → with_food). Requires dm+d integration (INFRA-3).
+**Depends on:** SCHED-1a, INFRA-3
+
+### SCHED-1e: "I just had breakfast" real-time routine signal
+**Priority:** P3
+**Complexity:** High
+**Description:** Let users signal when a routine event actually happens (e.g. tap "I'm having breakfast now"), shifting the dose's "due now" window in real time. Explored by CareClinic (tracks meals/sleep) but no medication-focused app implements this.
+**Depends on:** SCHED-1a
+
+### SCHED-1f: Routine time learning from user behaviour
+**Priority:** P3
+**Complexity:** High
+**Description:** Analyse dose-taking patterns over time to learn when the user actually takes routine-anchored doses, and adjust default times and windows accordingly. E.g. if a user consistently takes their "breakfast" dose at 07:15, shift the default from 08:00.
+**Depends on:** SCHED-1a
+
+### SCHED-2: Dose regeneration on schedule edit
+**Priority:** P0
+**Complexity:** Medium
+
+### SCHED-3: Twice-daily and complex frequency support
+**Priority:** P0
+**Complexity:** Medium
+**Research:** Adherence drops from ~79% (once daily) to ~51% (four times daily) — pill_box_heuristics.pdf §3. System must surface regimen complexity to the user.
+
+### SCHED-4: Schedule conflict resolution UX
+**Priority:** P1
+**Complexity:** Medium
+
+### SCHED-5: Schedule history / audit trail
+**Priority:** P1
+**Complexity:** Low
+
+### SCHED-6: Timezone edge cases
+**Priority:** P2
+**Complexity:** Low
+
+---
+
+## EPIC: Core UX — Verification First
+
+> **Research ref:** pill_box_heuristics.pdf §1 ("the core user need is fast, reliable dose status confirmation, not the alert — 85% of participants cited visual confirmation as primary value"); §7 implication 1 ("Verification first")
+
+### UX-1: "Due Now" home screen (single-task, what's due right now)
+**Priority:** P0 (already partially implemented)
+**Research:** Feature Priority Matrix P0; Medication UI Patterns Pattern 1; pill_box_heuristics.pdf §7.1 ("mark taken and 'have I already taken this?' check must be immediate and accessible without navigation")
+
+### UX-2: Large Taken / Skip / Snooze confirmation actions
+**Priority:** P0 (already partially implemented)
+**Research:** Feature Priority Matrix P0; Medication UI Patterns Pattern 2 (three clear actions, large, colour-coded, labelled with text)
+
+### UX-3: Missed dose workflow
+**Priority:** P1
+**Complexity:** Medium
+**Research:** Feature Priority Matrix P1; Stuck et al. 2017 ("inflexible scheduling, weak handling of missed doses"); Medication UI Patterns §Mistake 5 ("escalation rather than repetition" — Reminder > Snooze > Second reminder > Caregiver alert)
+
+### UX-4: Visual medication identification (pill photo, colour, shape, purpose label)
+**Priority:** P1
+**Complexity:** Medium
+**Research:** Feature Priority Matrix P1; Design of Pill Boxes p2 ("older adults identify medications by appearance rather than name"); Medication UI Patterns Pattern 3 ("Blue capsule — blood pressure")
+
+### UX-5: Move GP Practice and Nominated Pharmacy into hero banner
+**Priority:** P1
+**Complexity:** Low
+**Description:** GP practice and nominated pharmacy info currently displayed as separate cards on the dashboard. Move them into the teal hero banner alongside the greeting/name/NHS number for a cleaner, more NHS App-like layout.
+
+### UX-6: WCAG 2.2 AA accessibility audit
+**Priority:** P1
+**Complexity:** Medium
+**Research:** Design of Pill Boxes p4 ("treat WCAG 2.2 as the accessibility floor"); Feature Priority Matrix P0 (high-contrast UI, large tap targets >=44px)
+
+---
+
+## EPIC: Social Layer — Caregiver Integration
+
+> **Research ref:** pill_box_heuristics.pdf §6 ("Data sharing with caregivers is the third highest evidence-weighted feature — effect weight 0.148"); §7.6 ("inverts the MDS dependency model"); Feature Priority Matrix P1
+
+### CARE-1: Caregiver shared access / view
+**Priority:** P1
+**Complexity:** Medium-High
+
+### CARE-2: Caregiver escalation alerts (missed dose > snooze > caregiver notification)
+**Priority:** P1
+**Complexity:** Medium
+
+---
+
+## EPIC: Notifications & Reminders
+
+> **Research ref:** pill_box_heuristics.pdf §6 ("reminders improve adherence when introduced but habituation is a known failure mode — typical drop-off: weeks 1-4 high, declining to near-baseline by months 3-6"); Medication UI Patterns §Feature 4 ("Smart snooze and escalation")
+
+### NOTIFY-1: Email reminders (ActionMailer)
+**Priority:** P2
+**Complexity:** Low
+
+### NOTIFY-2: Push notifications
+**Priority:** P2
+**Complexity:** Medium
+
+### NOTIFY-3: Smart snooze with escalation chain
+**Priority:** P2
+**Complexity:** Medium
+**Research:** pill_box_heuristics.pdf §6 ("apps allowing snoozed or rescheduled reminders achieve better sustained adherence than fixed-time alerts")
+
+---
+
+## EPIC: Monitoring & Insight Layer
+
+> **Research ref:** pill_box_heuristics.pdf §6 ("Documentation/logging has highest effect weight at 0.254 — the act of recording a dose has value beyond the reminder"); §6 Visualisation ("calendar/streak-based views preferred over numerical percentage displays; trajectories more motivating than current state")
+
+### INSIGHT-1: Adherence calendar / streak view
+**Priority:** P2
+**Complexity:** Medium
+**Research:** Feature Priority Matrix P1 ("Medication schedule calendar view — helps planning and confidence"); Medication UI Patterns Pattern 4
+
+### INSIGHT-2: Regimen complexity visibility
+**Priority:** P2
+**Complexity:** Low
+**Research:** pill_box_heuristics.pdf §7.4 ("20.7% of pill box users did not know their own dosages — showing patients a clear view of cognitive burden has diagnostic and therapeutic value")
+
+---
+
+## EPIC: Intentional Non-Adherence Support
+
+> **Research ref:** pill_box_heuristics.pdf §3 ("intentional non-adherence ~28% — belief-based decisions not to take; almost entirely unserved by existing tools"); §5 Necessity-Concerns Framework ("medication concerns OR = 0.50 — each SD increase in concerns halves adherence odds; 17% had concerns exceeding necessity beliefs")
+
+### INTENT-1: Medication concerns logging (structured "I'm worried about..." flow)
+**Priority:** P2
+**Complexity:** Medium
+
+### INTENT-2: Condition-linked necessity information
+**Priority:** P3
+**Complexity:** Medium
+
+---
+
+## EPIC: Clinical Safety
+
+> **Research ref:** pill_box_heuristics.pdf §2 ("the perfect adherence trap — five adverse events in MCA group vs zero in control; abrupt transition to full adherence caused dose-related side effects"); §7.2 ("If onboarding reveals significant sub-adherence, surface recommendation to discuss with GP")
+
+### SAFETY-1: Perfect adherence trap warning on onboarding
+**Priority:** P2
+**Complexity:** Low
+
+### SAFETY-2: DCB0129 clinical safety case
+**Priority:** P2 (required before production clinical use)
+**Complexity:** High
+
+### SAFETY-3: DSPT compliance
+**Priority:** P2
+**Complexity:** High
+
+### SAFETY-4: DTAC assessment
+**Priority:** P3
+**Complexity:** Medium
+
+---
+
+## EPIC: Infrastructure
+
+### INFRA-1: Local dev → PostgreSQL (replace SQLite)
+**Priority:** P1
+**Complexity:** Low
+
+### INFRA-2: Staging environment
+**Priority:** P1
+**Complexity:** Medium
+
+### INFRA-3: dm+d drug database integration (NHS Dictionary of Medicines and Devices)
+**Priority:** P1
+**Complexity:** Medium
+**Research:** Medication UI Patterns §Setup Layer Feature 1 ("RxNorm / NHS dm+d drug database — reduces errors, faster setup, enables pill imagery")
+
+### INFRA-4: Full BDD/Capybara test coverage
+**Priority:** P1
+**Complexity:** Medium
+**Description:** Comprehensive integration test suite using Capybara feature specs. Cover all user-facing flows end-to-end: sign up, sign in (email + NHS Login), dashboard interaction (mark taken/skipped), medication CRUD, schedule CRUD, adherence view, reorder warnings, archived medications, GP/pharmacy info cards. Ensure all happy paths and key error paths are exercised through the browser stack.
+
+---
+
+## EPIC: Uncollected Prescriptions
+
+> **Research ref:** Investment Case §1.2 ("wasted medicines — £300m annually, England"); pill_box_heuristics.pdf §4 ("NHS App handles prescription ordering and collection logistics but stops at the pharmacy door")
+
+### UNCOL-1: Collection rate monitoring (patient-facing)
+**Priority:** P2
+**Complexity:** Medium
+**Description:** Track and surface to the patient their own prescription collection rate over time — similar to the adherence view. Visual feedback loop to encourage behaviour change.
+
+### UNCOL-2: "I'm on my way" notification (patient → pharmacy)
+**Priority:** P3
+**Complexity:** Medium
+**Description:** Patient confirms via the app that they are heading to the pharmacy to collect. Triggers notification to the pharmacy side.
+
+### UNCOL-3: Just-in-time fulfilment (pharmacy-facing)
+**Priority:** P3
+**Complexity:** High
+**Description:** When a patient sends an "I'm on my way" signal, the pharmacy receives a notification to begin dispensing — reducing wait time and minimising stock sitting uncollected on shelves. Requires a pharmacist-role user type (Practitioner model) and pharmacy/organisation model (B2B layer).
+**Depends on:** Organisation/B2B model, Practitioner user role
+
+---
+
+## Priority Summary
+
+| Priority | Items | Theme |
+|----------|-------|-------|
+| P0 | SCHED-1a, SCHED-2, SCHED-3, UX-1, UX-2 | Core scheduling + verification loop |
+| P1 | NHS-1, NHS-2, SCHED-4, SCHED-5, UX-3, UX-4, UX-5, UX-6, CARE-1, CARE-2, INFRA-1, INFRA-2, INFRA-3, INFRA-4 | NHS foundation, accessibility, caregiver, infra |
+| P2 | NHS-3, NHS-4, SCHED-1b, SCHED-1c, SCHED-6, NOTIFY-1–3, INSIGHT-1–2, INTENT-1, SAFETY-1–3, UNCOL-1 | Enrichment, routine customisation, notifications, clinical safety |
+| P3 | SCHED-1d, SCHED-1e, SCHED-1f, INTENT-2, SAFETY-4, UNCOL-2, UNCOL-3 | Advanced routines, education, DTAC, pharmacy-facing |

@@ -73,3 +73,8 @@ group :development, :test do
 end
 
 gem "devise", "~> 5.0"
+
+# NHS Login (OmniAuth OIDC with private_key_jwt)
+gem "omniauth_openid_connect"
+gem "omniauth-rails_csrf_protection"
+gem "jwt"

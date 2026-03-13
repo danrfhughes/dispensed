@@ -4,8 +4,115 @@ RSpec.describe Schedule, type: :model do
   before { allow_any_instance_of(GenerateDailyDosesJob).to receive(:perform) }
 
   it { should belong_to(:medication) }
-  it { should validate_presence_of(:time_of_day) }
   it { should validate_presence_of(:days_of_week) }
+
+  describe 'time_of_day validation' do
+    it 'requires time_of_day when no routine anchor is set' do
+      schedule = build(:schedule, time_of_day: nil, routine_anchor: nil)
+      expect(schedule).not_to be_valid
+      expect(schedule.errors[:time_of_day]).to be_present
+    end
+
+    it 'does not require time_of_day when routine anchor is set' do
+      schedule = build(:schedule, :routine)
+      expect(schedule).to be_valid
+    end
+  end
+
+  describe 'routine_anchor validation' do
+    it 'accepts valid anchor values' do
+      Schedule::ROUTINE_ANCHORS.each_key do |anchor|
+        expect(build(:schedule, routine_anchor: anchor, time_of_day: nil)).to be_valid
+      end
+    end
+
+    it 'rejects invalid anchor values' do
+      schedule = build(:schedule, routine_anchor: "lunch", time_of_day: nil)
+      expect(schedule).not_to be_valid
+      expect(schedule.errors[:routine_anchor]).to be_present
+    end
+
+    it 'allows nil' do
+      expect(build(:schedule, routine_anchor: nil)).to be_valid
+    end
+  end
+
+  describe 'food_relation validation' do
+    it 'accepts valid food relation values' do
+      Schedule::FOOD_RELATIONS.each do |relation|
+        expect(build(:schedule, food_relation: relation)).to be_valid
+      end
+    end
+
+    it 'rejects invalid values' do
+      schedule = build(:schedule, food_relation: "during_food")
+      expect(schedule).not_to be_valid
+      expect(schedule.errors[:food_relation]).to be_present
+    end
+
+    it 'allows nil' do
+      expect(build(:schedule, food_relation: nil)).to be_valid
+    end
+  end
+
+  describe 'apply_anchor_default_time' do
+    it 'fills time_of_day from anchor default when blank' do
+      schedule = create(:schedule, :routine)
+      expect(schedule.time_of_day.strftime("%H:%M")).to eq("08:00")
+    end
+
+    it 'preserves explicit time_of_day when set with anchor' do
+      schedule = create(:schedule, routine_anchor: "breakfast", time_of_day: "09:30")
+      expect(schedule.time_of_day.strftime("%H:%M")).to eq("09:30")
+    end
+
+    it 'does not modify time_of_day for clock-time schedules' do
+      schedule = create(:schedule, time_of_day: "14:00")
+      expect(schedule.time_of_day.strftime("%H:%M")).to eq("14:00")
+    end
+  end
+
+  describe '#routine_anchor?' do
+    it 'returns true when routine_anchor is set' do
+      expect(build(:schedule, :routine).routine_anchor?).to be true
+    end
+
+    it 'returns false when routine_anchor is nil' do
+      expect(build(:schedule).routine_anchor?).to be false
+    end
+  end
+
+  describe '#routine_label' do
+    it 'returns the anchor label' do
+      expect(build(:schedule, routine_anchor: "breakfast").routine_label).to eq("With breakfast")
+    end
+
+    it 'returns nil for clock-time schedules' do
+      expect(build(:schedule).routine_label).to be_nil
+    end
+  end
+
+  describe '#food_relation_label' do
+    it 'humanises the food relation' do
+      expect(build(:schedule, food_relation: "with_food").food_relation_label).to eq("with food")
+      expect(build(:schedule, food_relation: "empty_stomach").food_relation_label).to eq("empty stomach")
+    end
+
+    it 'returns nil when no food relation is set' do
+      expect(build(:schedule).food_relation_label).to be_nil
+    end
+  end
+
+  describe '#window_minutes' do
+    it 'returns the anchor window for routine schedules' do
+      expect(build(:schedule, routine_anchor: "breakfast").window_minutes).to eq(120)
+      expect(build(:schedule, routine_anchor: "bedtime").window_minutes).to eq(90)
+    end
+
+    it 'returns 60 for clock-time schedules' do
+      expect(build(:schedule).window_minutes).to eq(60)
+    end
+  end
 
   describe '#active_on?' do
     let(:schedule) { build(:schedule, days_of_week: "daily") }

@@ -4,7 +4,7 @@ class SchedulesController < ApplicationController
   before_action :set_schedule, only: [:edit, :update, :destroy]
 
   def new
-    @schedule = @medication.schedules.build(time_of_day: "08:00")
+    @schedule = @medication.schedules.build
   end
 
   def create
@@ -52,6 +52,6 @@ class SchedulesController < ApplicationController
   end
 
   def schedule_params
-    params.require(:schedule).permit(:time_of_day, :days_of_week, :instructions)
+    params.require(:schedule).permit(:time_of_day, :days_of_week, :instructions, :routine_anchor, :food_relation)
   end
 end
