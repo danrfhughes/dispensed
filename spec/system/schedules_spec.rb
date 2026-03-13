@@ -10,8 +10,10 @@ RSpec.describe "Schedules", type: :system do
     it "adds a schedule and generates a dose" do
       visit new_medication_schedule_path(medication)
 
-      choose "At a specific time"
-      fill_in "schedule_time_of_day", with: "09:00"
+      within("#single-schedule-section") do
+        choose "At a specific time"
+        fill_in "schedule_time_of_day", with: "09:00"
+      end
       click_button "Create Schedule"
 
       expect(page).to have_content("Schedule added")
@@ -23,7 +25,9 @@ RSpec.describe "Schedules", type: :system do
     it "adds a breakfast routine schedule" do
       visit new_medication_schedule_path(medication)
 
-      choose "With breakfast"
+      within("#single-schedule-section") do
+        choose "With breakfast"
+      end
       click_button "Create Schedule"
 
       expect(page).to have_content("Schedule added")
@@ -36,7 +40,9 @@ RSpec.describe "Schedules", type: :system do
     it "saves food relation when set" do
       visit new_medication_schedule_path(medication)
 
-      choose "With breakfast"
+      within("#single-schedule-section") do
+        choose "With breakfast"
+      end
       choose "Before food (empty stomach)"
       click_button "Create Schedule"
 
@@ -50,8 +56,9 @@ RSpec.describe "Schedules", type: :system do
     it "shows error when no time and no anchor selected" do
       visit new_medication_schedule_path(medication)
 
-      # Submit with "At a specific time" selected but time left blank
-      choose "At a specific time"
+      within("#single-schedule-section") do
+        choose "At a specific time"
+      end
       click_button "Create Schedule"
 
       expect(page).to have_css(".bg-red-100")
@@ -59,16 +66,35 @@ RSpec.describe "Schedules", type: :system do
   end
 
   describe "overlap conflict" do
-    it "shows error when creating overlapping daily schedule" do
+    it "shows error when creating schedule at same time slot" do
       create(:schedule, medication: medication, time_of_day: "08:00", days_of_week: "daily")
 
       visit new_medication_schedule_path(medication)
 
-      choose "At a specific time"
-      fill_in "schedule_time_of_day", with: "10:00"
+      choose "Once a day"
+      within("#single-schedule-section") do
+        choose "At a specific time"
+        fill_in "schedule_time_of_day", with: "08:00"
+      end
       click_button "Create Schedule"
 
       expect(page).to have_content("conflicts")
+    end
+
+    it "allows creating a second schedule at a different time" do
+      create(:schedule, medication: medication, time_of_day: "08:00", days_of_week: "daily")
+
+      visit new_medication_schedule_path(medication)
+
+      choose "Once a day"
+      within("#single-schedule-section") do
+        choose "At a specific time"
+        fill_in "schedule_time_of_day", with: "22:00"
+      end
+      click_button "Create Schedule"
+
+      expect(page).to have_content("Schedule added")
+      expect(medication.schedules.active.count).to eq(2)
     end
   end
 
@@ -105,8 +131,10 @@ RSpec.describe "Schedules", type: :system do
     it "creates a schedule for specific days" do
       visit new_medication_schedule_path(medication)
 
-      choose "At a specific time"
-      fill_in "schedule_time_of_day", with: "08:00"
+      within("#single-schedule-section") do
+        choose "At a specific time"
+        fill_in "schedule_time_of_day", with: "08:00"
+      end
       choose "Specific days"
       check "Monday"
       check "Wednesday"

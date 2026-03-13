@@ -7,32 +7,47 @@
     </div>
   <% end %>
 
-  <%# Step 1: When do you take this? %>
-  <div>
-    <p class="block text-sm font-medium text-gray-700 mb-2">When do you take this?</p>
-
-    <div class="space-y-2" id="anchor-options">
-      <% primary = [["breakfast", "With breakfast", "08:00"], ["bedtime", "Before bed", "22:00"]] %>
-      <% secondary = [["waking", "When you wake up", "07:00"], ["midday", "Around midday", "12:00"], ["evening_meal", "With your evening meal", "18:00"]] %>
-
-      <% primary.each do |key, label, default_time| %>
-        <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-teal-400 transition-colors has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
-          <input type="radio" name="schedule[routine_anchor]" value="<%= key %>"
-            class="accent-teal-700" data-default-time="<%= default_time %>" data-anchor="true"
-            <%= schedule.routine_anchor == key ? "checked" : "" %>>
-          <span class="text-sm font-medium text-gray-800"><%= label %></span>
-        </label>
+  <% if @twice_daily_errors.present? %>
+    <div class="p-3 bg-red-100 text-red-700 rounded text-sm">
+      <% @twice_daily_errors.each do |msg| %>
+        <p><%= msg %></p>
       <% end %>
+    </div>
+  <% end %>
 
-      <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-teal-400 transition-colors has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
-        <input type="radio" name="schedule[routine_anchor]" value=""
-          class="accent-teal-700" data-anchor="false"
-          <%= schedule.routine_anchor.blank? ? "checked" : "" %>>
-        <span class="text-sm font-medium text-gray-800">At a specific time</span>
-      </label>
+  <% is_new = schedule.new_record? %>
 
-      <div id="more-anchors" class="<%= secondary.any? { |k, _, _| schedule.routine_anchor == k } ? '' : 'hidden' %> space-y-2">
-        <% secondary.each do |key, label, default_time| %>
+  <% if is_new %>
+    <%# Step 0: How many times a day? (new schedules only) %>
+    <div>
+      <p class="block text-sm font-medium text-gray-700 mb-2">How many times a day?</p>
+      <div class="space-y-2">
+        <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-teal-400 transition-colors has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
+          <input type="radio" name="schedule[frequency_type]" value="once_daily" id="freq_type_once"
+            class="accent-teal-700" checked>
+          <span class="text-sm font-medium text-gray-800">Once a day</span>
+        </label>
+        <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-teal-400 transition-colors has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
+          <input type="radio" name="schedule[frequency_type]" value="twice_daily" id="freq_type_twice"
+            class="accent-teal-700">
+          <span class="text-sm font-medium text-gray-800">Twice a day</span>
+          <span class="text-xs text-gray-400">(morning + evening)</span>
+        </label>
+      </div>
+    </div>
+  <% end %>
+
+  <%# === SINGLE SCHEDULE SECTION (once daily / edit) === %>
+  <div id="single-schedule-section" data-testid="single-schedule">
+    <%# Step 1: When do you take this? %>
+    <div>
+      <p class="block text-sm font-medium text-gray-700 mb-2">When do you take this?</p>
+
+      <div class="space-y-2" id="anchor-options">
+        <% primary = [["breakfast", "With breakfast", "08:00"], ["bedtime", "Before bed", "22:00"]] %>
+        <% secondary = [["waking", "When you wake up", "07:00"], ["midday", "Around midday", "12:00"], ["evening_meal", "With your evening meal", "18:00"]] %>
+
+        <% primary.each do |key, label, default_time| %>
           <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-teal-400 transition-colors has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
             <input type="radio" name="schedule[routine_anchor]" value="<%= key %>"
               class="accent-teal-700" data-default-time="<%= default_time %>" data-anchor="true"
@@ -40,42 +55,145 @@
             <span class="text-sm font-medium text-gray-800"><%= label %></span>
           </label>
         <% end %>
+
+        <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-teal-400 transition-colors has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
+          <input type="radio" name="schedule[routine_anchor]" value="" id="anchor_specific_time"
+            class="accent-teal-700" data-anchor="false"
+            <%= schedule.routine_anchor.blank? ? "checked" : "" %>>
+          <span class="text-sm font-medium text-gray-800">At a specific time</span>
+        </label>
+
+        <div id="more-anchors" class="<%= secondary.any? { |k, _, _| schedule.routine_anchor == k } ? '' : 'hidden' %> space-y-2">
+          <% secondary.each do |key, label, default_time| %>
+            <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-teal-400 transition-colors has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
+              <input type="radio" name="schedule[routine_anchor]" value="<%= key %>"
+                class="accent-teal-700" data-default-time="<%= default_time %>" data-anchor="true"
+                <%= schedule.routine_anchor == key ? "checked" : "" %>>
+              <span class="text-sm font-medium text-gray-800"><%= label %></span>
+            </label>
+          <% end %>
+        </div>
+
+        <button type="button" id="show-more-anchors" class="text-xs text-teal-600 hover:underline pl-1"
+          style="<%= secondary.any? { |k, _, _| schedule.routine_anchor == k } ? 'display:none' : '' %>">
+          More options &darr;
+        </button>
+      </div>
+    </div>
+
+    <%# Step 2: Food relation (shown for routine anchors) %>
+    <div id="food-relation-section" class="<%= schedule.routine_anchor.present? ? '' : 'hidden' %>">
+      <p class="block text-sm font-medium text-gray-700 mb-2">Taken with food?</p>
+      <div class="space-y-1">
+        <% [["with_food", "With food"], ["before_food", "Before food (empty stomach)"], ["empty_stomach", "On an empty stomach"], ["", "Doesn't matter"]].each do |value, label| %>
+          <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input type="radio" name="schedule[food_relation]" value="<%= value %>"
+              class="accent-teal-700"
+              <%= (schedule.food_relation.to_s == value || (schedule.food_relation.blank? && value == "")) ? "checked" : "" %>>
+            <%= label %>
+          </label>
+        <% end %>
+      </div>
+    </div>
+
+    <%# Step 3: Time %>
+    <div>
+      <label id="time-label" class="block text-sm font-medium text-gray-700 mb-1">
+        <%= schedule.routine_anchor.present? ? "Usual time" : "Time" %>
+      </label>
+      <%= f.time_field :time_of_day, class: "w-full border border-gray-300 rounded px-3 py-2 text-sm" %>
+      <p id="time-hint" class="text-xs text-gray-400 mt-1 <%= schedule.routine_anchor.present? ? '' : 'hidden' %>">
+        Pre-filled from your routine — adjust if needed
+      </p>
+    </div>
+  </div>
+
+  <%# === TWICE DAILY SECTION (new schedules only) === %>
+  <% if is_new %>
+    <div id="twice-daily-section" class="hidden space-y-6">
+      <% anchors = [["breakfast", "With breakfast", "08:00"], ["waking", "When you wake up", "07:00"], ["midday", "Around midday", "12:00"], ["evening_meal", "With your evening meal", "18:00"], ["bedtime", "Before bed", "22:00"]] %>
+
+      <%# Morning dose %>
+      <div class="border border-gray-200 rounded-lg p-4">
+        <p class="text-sm font-semibold text-gray-700 mb-3">Morning dose</p>
+        <div class="space-y-2 mb-3">
+          <% [["breakfast", "With breakfast", "08:00"], ["waking", "When you wake up", "07:00"]].each do |key, label, default_time| %>
+            <label class="flex items-center gap-3 p-2 border border-gray-200 rounded cursor-pointer hover:border-teal-400 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
+              <input type="radio" name="schedule[morning_anchor]" value="<%= key %>"
+                class="accent-teal-700 td-anchor" data-default-time="<%= default_time %>" data-target="morning"
+                <%= key == "breakfast" ? "checked" : "" %>>
+              <span class="text-sm text-gray-800"><%= label %></span>
+            </label>
+          <% end %>
+          <label class="flex items-center gap-3 p-2 border border-gray-200 rounded cursor-pointer hover:border-teal-400 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
+            <input type="radio" name="schedule[morning_anchor]" value="" id="morning_anchor_specific"
+              class="accent-teal-700 td-anchor" data-target="morning">
+            <span class="text-sm text-gray-800">Specific time</span>
+          </label>
+        </div>
+
+        <div id="morning-food-section">
+          <p class="text-xs font-medium text-gray-600 mb-1">Taken with food?</p>
+          <div class="flex flex-wrap gap-3">
+            <% [["with_food", "With food"], ["before_food", "Before food"], ["empty_stomach", "Empty stomach"], ["", "Doesn't matter"]].each do |value, label| %>
+              <label class="flex items-center gap-1 text-xs text-gray-600">
+                <input type="radio" name="schedule[morning_food_relation]" value="<%= value %>"
+                  class="accent-teal-700" <%= value == "" ? "checked" : "" %>>
+                <%= label %>
+              </label>
+            <% end %>
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <label class="text-xs font-medium text-gray-600">Usual time</label>
+          <input type="time" name="schedule[morning_time_of_day]" id="morning_time" value="08:00"
+            class="w-full border border-gray-300 rounded px-3 py-2 text-sm mt-1">
+        </div>
       </div>
 
-      <button type="button" id="show-more-anchors" class="text-xs text-teal-600 hover:underline pl-1"
-        style="<%= secondary.any? { |k, _, _| schedule.routine_anchor == k } ? 'display:none' : '' %>">
-        More options &darr;
-      </button>
+      <%# Evening dose %>
+      <div class="border border-gray-200 rounded-lg p-4">
+        <p class="text-sm font-semibold text-gray-700 mb-3">Evening dose</p>
+        <div class="space-y-2 mb-3">
+          <% [["bedtime", "Before bed", "22:00"], ["evening_meal", "With your evening meal", "18:00"]].each do |key, label, default_time| %>
+            <label class="flex items-center gap-3 p-2 border border-gray-200 rounded cursor-pointer hover:border-teal-400 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
+              <input type="radio" name="schedule[evening_anchor]" value="<%= key %>"
+                class="accent-teal-700 td-anchor" data-default-time="<%= default_time %>" data-target="evening"
+                <%= key == "bedtime" ? "checked" : "" %>>
+              <span class="text-sm text-gray-800"><%= label %></span>
+            </label>
+          <% end %>
+          <label class="flex items-center gap-3 p-2 border border-gray-200 rounded cursor-pointer hover:border-teal-400 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50">
+            <input type="radio" name="schedule[evening_anchor]" value="" id="evening_anchor_specific"
+              class="accent-teal-700 td-anchor" data-target="evening">
+            <span class="text-sm text-gray-800">Specific time</span>
+          </label>
+        </div>
+
+        <div id="evening-food-section">
+          <p class="text-xs font-medium text-gray-600 mb-1">Taken with food?</p>
+          <div class="flex flex-wrap gap-3">
+            <% [["with_food", "With food"], ["before_food", "Before food"], ["empty_stomach", "Empty stomach"], ["", "Doesn't matter"]].each do |value, label| %>
+              <label class="flex items-center gap-1 text-xs text-gray-600">
+                <input type="radio" name="schedule[evening_food_relation]" value="<%= value %>"
+                  class="accent-teal-700" <%= value == "" ? "checked" : "" %>>
+                <%= label %>
+              </label>
+            <% end %>
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <label class="text-xs font-medium text-gray-600">Usual time</label>
+          <input type="time" name="schedule[evening_time_of_day]" id="evening_time" value="22:00"
+            class="w-full border border-gray-300 rounded px-3 py-2 text-sm mt-1">
+        </div>
+      </div>
     </div>
-  </div>
+  <% end %>
 
-  <%# Step 2: Food relation (shown for routine anchors) %>
-  <div id="food-relation-section" class="<%= schedule.routine_anchor.present? ? '' : 'hidden' %>">
-    <p class="block text-sm font-medium text-gray-700 mb-2">Taken with food?</p>
-    <div class="space-y-1">
-      <% [["with_food", "With food"], ["before_food", "Before food (empty stomach)"], ["empty_stomach", "On an empty stomach"], ["", "Doesn't matter"]].each do |value, label| %>
-        <label class="flex items-center gap-2 text-sm text-gray-700">
-          <input type="radio" name="schedule[food_relation]" value="<%= value %>"
-            class="accent-teal-700"
-            <%= (schedule.food_relation.to_s == value || (schedule.food_relation.blank? && value == "")) ? "checked" : "" %>>
-          <%= label %>
-        </label>
-      <% end %>
-    </div>
-  </div>
-
-  <%# Step 3: Time %>
-  <div>
-    <label id="time-label" class="block text-sm font-medium text-gray-700 mb-1">
-      <%= schedule.routine_anchor.present? ? "Usual time" : "Time" %>
-    </label>
-    <%= f.time_field :time_of_day, class: "w-full border border-gray-300 rounded px-3 py-2 text-sm" %>
-    <p id="time-hint" class="text-xs text-gray-400 mt-1 <%= schedule.routine_anchor.present? ? '' : 'hidden' %>">
-      Pre-filled from your routine — adjust if needed
-    </p>
-  </div>
-
-  <%# Step 4: Frequency %>
+  <%# Step 4: Frequency (days) %>
   <% is_daily = schedule.days_of_week == "daily" || schedule.days_of_week.blank? %>
 
   <div>
@@ -118,7 +236,7 @@
 
 <script>
   (function() {
-    // Frequency toggle
+    // Frequency toggle (daily vs specific days)
     const daily = document.getElementById('freq_daily');
     const specific = document.getElementById('freq_specific');
     const daysContainer = document.getElementById('specific-days-container');
@@ -132,7 +250,7 @@
       daysContainer.classList.remove('hidden');
     });
 
-    // Routine anchor handling
+    // Routine anchor handling (single schedule)
     const anchorRadios = document.querySelectorAll('input[name="schedule[routine_anchor]"]');
     const foodSection = document.getElementById('food-relation-section');
     const timeField = document.querySelector('input[name="schedule[time_of_day]"]');
@@ -166,5 +284,39 @@
         }
       });
     });
+
+    // Twice-daily toggle (new schedules only)
+    const freqTypeOnce = document.getElementById('freq_type_once');
+    const freqTypeTwice = document.getElementById('freq_type_twice');
+    const singleSection = document.getElementById('single-schedule-section');
+    const twiceSection = document.getElementById('twice-daily-section');
+
+    if (freqTypeOnce && freqTypeTwice) {
+      freqTypeOnce.addEventListener('change', function() {
+        singleSection.classList.remove('hidden');
+        twiceSection.classList.add('hidden');
+      });
+      freqTypeTwice.addEventListener('change', function() {
+        singleSection.classList.add('hidden');
+        twiceSection.classList.remove('hidden');
+      });
+
+      // Twice-daily anchor radios — update time fields when anchor changes
+      document.querySelectorAll('.td-anchor').forEach(function(radio) {
+        radio.addEventListener('change', function() {
+          var target = this.dataset.target; // "morning" or "evening"
+          var timeInput = document.getElementById(target + '_time');
+          var foodSection = document.getElementById(target + '-food-section');
+
+          if (this.value && this.dataset.defaultTime) {
+            timeInput.value = this.dataset.defaultTime;
+            foodSection.style.display = '';
+          } else {
+            timeInput.value = '';
+            foodSection.style.display = 'none';
+          }
+        });
+      });
+    }
   })();
 </script>

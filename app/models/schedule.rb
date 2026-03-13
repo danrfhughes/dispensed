@@ -91,16 +91,42 @@ class Schedule < ApplicationRecord
     siblings = medication.schedules.active.where.not(id: id)
     return if siblings.none?
 
-    if days_of_week == "daily"
-      errors.add(:days_of_week, "conflicts with an existing schedule — remove it first before adding a Daily one")
-    elsif siblings.any? { |s| s.days_of_week == "daily" }
-      errors.add(:days_of_week, "conflicts with an existing Daily schedule")
-    else
-      existing_days = siblings.flat_map { |s| s.days_of_week.split(",") }.uniq
-      overlap = days_of_week.to_s.split(",") & existing_days
-      if overlap.any?
-        errors.add(:days_of_week, "conflicts with an existing schedule on #{overlap.map(&:capitalize).join(", ")}")
+    # Only block if a sibling has the same time slot on an overlapping day.
+    # "Same time slot" means same routine_anchor, or same time_of_day (within 2 hours) when no anchors.
+    siblings.each do |sibling|
+      next unless days_overlap?(sibling)
+      next unless same_time_slot?(sibling)
+
+      if routine_anchor.present?
+        errors.add(:routine_anchor, "already has a #{ROUTINE_ANCHORS.dig(routine_anchor, :label)} schedule")
+      else
+        errors.add(:time_of_day, "conflicts with an existing schedule at the same time")
       end
+      return
     end
+  end
+
+  def days_overlap?(other)
+    my_days = expand_days(days_of_week)
+    other_days = expand_days(other.days_of_week)
+    (my_days & other_days).any?
+  end
+
+  def expand_days(dow)
+    return Schedule::DAYS.reject { |d| d == "daily" } if dow == "daily"
+    dow.to_s.split(",")
+  end
+
+  def same_time_slot?(other)
+    # Both have routine anchors — conflict if same anchor
+    if routine_anchor.present? && other.routine_anchor.present?
+      return routine_anchor == other.routine_anchor
+    end
+
+    # Compare times — conflict if within 2 hours
+    return false unless time_of_day.present? && other.time_of_day.present?
+
+    gap = (time_of_day.seconds_since_midnight - other.time_of_day.seconds_since_midnight).abs
+    gap < 2.hours.to_i
   end
 end

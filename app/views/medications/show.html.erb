@@ -41,8 +41,18 @@
     <% active_schedules.each do |schedule| %>
       <div class="bg-white border border-gray-200 rounded px-4 py-3 flex justify-between items-center">
         <div>
-          <p class="font-medium text-gray-800"><%= schedule.time_of_day.strftime("%-I:%M %p") %></p>
-          <p class="text-sm text-gray-500"><%= schedule.days_label %></p>
+          <p class="font-medium text-gray-800">
+            <%= schedule.time_of_day.strftime("%-I:%M %p") %>
+            <% if schedule.routine_label %>
+              <span class="text-sm font-normal text-gray-500">&middot; <%= schedule.routine_label %></span>
+            <% end %>
+          </p>
+          <p class="text-sm text-gray-500">
+            <%= schedule.days_label %>
+            <% if schedule.food_relation_label %>
+              <span>&middot; <%= schedule.food_relation_label.capitalize %></span>
+            <% end %>
+          </p>
           <% if schedule.instructions.present? %>
             <p class="text-xs text-gray-400 mt-1"><%= schedule.instructions %></p>
           <% end %>

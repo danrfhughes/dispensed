@@ -263,40 +263,58 @@ RSpec.describe Schedule, type: :model do
       end
     end
 
-    context 'when a daily schedule already exists' do
-      before { create(:schedule, medication: medication, days_of_week: "daily") }
+    context 'when a daily schedule already exists at 08:00' do
+      before { create(:schedule, medication: medication, days_of_week: "daily", time_of_day: "08:00") }
 
-      it 'prevents adding another daily schedule' do
-        duplicate = build(:schedule, medication: medication, days_of_week: "daily")
+      it 'prevents adding another schedule at the same time' do
+        duplicate = build(:schedule, medication: medication, days_of_week: "daily", time_of_day: "08:30")
         expect(duplicate).not_to be_valid
-        expect(duplicate.errors[:days_of_week]).to be_present
       end
 
-      it 'prevents adding a specific-day schedule' do
-        specific = build(:schedule, medication: medication, days_of_week: "monday")
-        expect(specific).not_to be_valid
-        expect(specific.errors[:days_of_week]).to include(match(/Daily schedule/))
+      it 'allows adding a schedule at a different time (>= 2 hours apart)' do
+        different_time = build(:schedule, medication: medication, days_of_week: "daily", time_of_day: "22:00")
+        expect(different_time).to be_valid
+      end
+
+      it 'allows adding a schedule with a different routine anchor' do
+        bedtime = build(:schedule, medication: medication, days_of_week: "daily",
+                        routine_anchor: "bedtime", time_of_day: nil)
+        expect(bedtime).to be_valid
       end
     end
 
-    context 'when a specific-day schedule already exists' do
-      before { create(:schedule, medication: medication, days_of_week: "monday,wednesday") }
+    context 'when a routine-anchored schedule already exists' do
+      before { create(:schedule, :routine, medication: medication, days_of_week: "daily") }
 
-      it 'prevents adding a daily schedule' do
-        daily = build(:schedule, medication: medication, days_of_week: "daily")
-        expect(daily).not_to be_valid
-        expect(daily.errors[:days_of_week]).to be_present
+      it 'prevents adding another schedule with the same anchor' do
+        duplicate = build(:schedule, :routine, medication: medication, days_of_week: "daily")
+        expect(duplicate).not_to be_valid
+        expect(duplicate.errors[:routine_anchor]).to be_present
       end
 
-      it 'prevents adding a schedule with overlapping days' do
-        overlap = build(:schedule, medication: medication, days_of_week: "monday,friday")
+      it 'allows adding a schedule with a different anchor' do
+        bedtime = build(:schedule, medication: medication, days_of_week: "daily",
+                        routine_anchor: "bedtime", time_of_day: nil)
+        expect(bedtime).to be_valid
+      end
+    end
+
+    context 'with specific-day schedules' do
+      before { create(:schedule, medication: medication, days_of_week: "monday,wednesday", time_of_day: "08:00") }
+
+      it 'prevents adding a schedule at the same time on overlapping days' do
+        overlap = build(:schedule, medication: medication, days_of_week: "monday,friday", time_of_day: "08:00")
         expect(overlap).not_to be_valid
-        expect(overlap.errors[:days_of_week]).to include(match(/Monday/))
       end
 
-      it 'allows adding a schedule with non-overlapping days' do
-        no_overlap = build(:schedule, medication: medication, days_of_week: "thursday,friday")
+      it 'allows adding a schedule at the same time on non-overlapping days' do
+        no_overlap = build(:schedule, medication: medication, days_of_week: "thursday,friday", time_of_day: "08:00")
         expect(no_overlap).to be_valid
+      end
+
+      it 'allows adding a schedule at a different time on overlapping days' do
+        different_time = build(:schedule, medication: medication, days_of_week: "monday", time_of_day: "22:00")
+        expect(different_time).to be_valid
       end
     end
 
@@ -309,12 +327,52 @@ RSpec.describe Schedule, type: :model do
     end
 
     context 'when a conflicting schedule is archived' do
-      it 'allows adding a new schedule matching the archived days' do
-        schedule = create(:schedule, medication: medication, days_of_week: "monday")
+      it 'allows adding a new schedule matching the archived one' do
+        schedule = create(:schedule, medication: medication, days_of_week: "daily", time_of_day: "08:00")
         schedule.update_column(:active, false)
 
-        new_schedule = build(:schedule, medication: medication, days_of_week: "monday")
+        new_schedule = build(:schedule, medication: medication, days_of_week: "daily", time_of_day: "08:00")
         expect(new_schedule).to be_valid
+      end
+    end
+
+    context 'twice-daily (SCHED-3)' do
+      it 'allows breakfast + bedtime on the same daily medication' do
+        create(:schedule, medication: medication, days_of_week: "daily",
+               routine_anchor: "breakfast", time_of_day: nil)
+
+        bedtime = build(:schedule, medication: medication, days_of_week: "daily",
+                        routine_anchor: "bedtime", time_of_day: nil)
+        expect(bedtime).to be_valid
+      end
+
+      it 'allows two clock-time schedules at different times' do
+        create(:schedule, medication: medication, days_of_week: "daily", time_of_day: "08:00")
+
+        evening = build(:schedule, medication: medication, days_of_week: "daily", time_of_day: "20:00")
+        expect(evening).to be_valid
+      end
+
+      it 'blocks a third schedule at an existing anchor' do
+        create(:schedule, medication: medication, days_of_week: "daily",
+               routine_anchor: "breakfast", time_of_day: nil)
+        create(:schedule, medication: medication, days_of_week: "daily",
+               routine_anchor: "bedtime", time_of_day: nil)
+
+        duplicate = build(:schedule, medication: medication, days_of_week: "daily",
+                          routine_anchor: "breakfast", time_of_day: nil)
+        expect(duplicate).not_to be_valid
+      end
+
+      it 'allows three schedules at three different anchors' do
+        create(:schedule, medication: medication, days_of_week: "daily",
+               routine_anchor: "breakfast", time_of_day: nil)
+        create(:schedule, medication: medication, days_of_week: "daily",
+               routine_anchor: "bedtime", time_of_day: nil)
+
+        midday = build(:schedule, medication: medication, days_of_week: "daily",
+                       routine_anchor: "midday", time_of_day: nil)
+        expect(midday).to be_valid
       end
     end
   end

@@ -40,15 +40,24 @@ RSpec.describe "Schedules", type: :request do
       end
     end
 
-    context "when a conflicting daily schedule already exists" do
-      before { create(:schedule, medication: medication, days_of_week: "daily") }
+    context "when a conflicting schedule already exists at the same time" do
+      before { create(:schedule, medication: medication, days_of_week: "daily", time_of_day: "08:00") }
 
       it "re-renders the form with a conflict error" do
         post medication_schedules_path(medication), params: {
-          schedule: { time_of_day: "18:00", days_of_week: "monday", instructions: "" }
+          schedule: { time_of_day: "08:00", days_of_week: "daily", instructions: "" }
         }
         expect(response).to have_http_status(:unprocessable_entity)
         expect(response.body).to include("conflicts")
+      end
+
+      it "allows a schedule at a different time" do
+        expect {
+          post medication_schedules_path(medication), params: {
+            schedule: { time_of_day: "22:00", days_of_week: "daily", instructions: "" }
+          }
+        }.to change(Schedule, :count).by(1)
+        expect(response).to redirect_to(medication_path(medication))
       end
     end
 
@@ -91,6 +100,91 @@ RSpec.describe "Schedules", type: :request do
         }
         expect(response).to have_http_status(:unprocessable_entity)
         expect(response.body).to include("Time of day")
+      end
+    end
+
+    context "with frequency_type=twice_daily (SCHED-3)" do
+      it "creates two schedules with different anchors" do
+        expect {
+          post medication_schedules_path(medication), params: {
+            schedule: {
+              frequency_type: "twice_daily",
+              morning_anchor: "breakfast",
+              morning_food_relation: "with_food",
+              morning_time_of_day: "",
+              evening_anchor: "bedtime",
+              evening_food_relation: "",
+              evening_time_of_day: "",
+              days_of_week: "daily",
+              instructions: "Take with water"
+            }
+          }
+        }.to change(Schedule, :count).by(2)
+        expect(response).to redirect_to(medication_path(medication))
+
+        schedules = medication.schedules.active.order(:time_of_day)
+        expect(schedules.first.routine_anchor).to eq("breakfast")
+        expect(schedules.first.food_relation).to eq("with_food")
+        expect(schedules.last.routine_anchor).to eq("bedtime")
+      end
+
+      it "creates two schedules with clock times" do
+        expect {
+          post medication_schedules_path(medication), params: {
+            schedule: {
+              frequency_type: "twice_daily",
+              morning_anchor: "",
+              morning_food_relation: "",
+              morning_time_of_day: "08:00",
+              evening_anchor: "",
+              evening_food_relation: "",
+              evening_time_of_day: "20:00",
+              days_of_week: "daily",
+              instructions: ""
+            }
+          }
+        }.to change(Schedule, :count).by(2)
+
+        times = medication.schedules.active.order(:time_of_day).map { |s| s.time_of_day.strftime("%H:%M") }
+        expect(times).to eq(["08:00", "20:00"])
+      end
+
+      it "rolls back both if one is invalid (missing time and no anchor)" do
+        expect {
+          post medication_schedules_path(medication), params: {
+            schedule: {
+              frequency_type: "twice_daily",
+              morning_anchor: "breakfast",
+              morning_food_relation: "",
+              morning_time_of_day: "",
+              evening_anchor: "",
+              evening_food_relation: "",
+              evening_time_of_day: "",
+              days_of_week: "daily",
+              instructions: ""
+            }
+          }
+        }.not_to change(Schedule, :count)
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it "shares days_of_week and instructions across both schedules" do
+        post medication_schedules_path(medication), params: {
+          schedule: {
+            frequency_type: "twice_daily",
+            morning_anchor: "breakfast",
+            morning_food_relation: "",
+            morning_time_of_day: "",
+            evening_anchor: "bedtime",
+            evening_food_relation: "",
+            evening_time_of_day: "",
+            days_of_week: "daily",
+            instructions: "Swallow whole"
+          }
+        }
+        schedules = medication.schedules.active
+        expect(schedules.pluck(:days_of_week).uniq).to eq(["daily"])
+        expect(schedules.pluck(:instructions).uniq).to eq(["Swallow whole"])
       end
     end
 
