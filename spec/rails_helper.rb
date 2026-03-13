@@ -65,9 +65,14 @@ RSpec.configure do |config|
   # To enable this behaviour uncomment the line below.
   config.infer_spec_type_from_file_location!
 
-  # Use rack_test for system specs (fast, no JS)
+  # Use rack_test for system specs by default (fast, no JS).
+  # Tag specs with `js: true` to use headless Chrome for JS-dependent tests.
   config.before(:each, type: :system) do
     driven_by(:rack_test)
+  end
+
+  config.before(:each, type: :system, js: true) do
+    driven_by(:selenium, using: :headless_chrome, screen_size: [1280, 800])
   end
 
   # Filter lines from Rails gems in backtraces.

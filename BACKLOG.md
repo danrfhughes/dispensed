@@ -123,9 +123,10 @@ This means SCHED-1a's data model is FHIR-ready by design. The manual schedule fo
 **Priority:** P0
 **Complexity:** Medium
 
-### SCHED-3: Twice-daily and complex frequency support
+### SCHED-3: Twice-daily and complex frequency support ✅
 **Priority:** P0
 **Complexity:** Medium
+**Status:** COMPLETE — overlap validator relaxed, twice-daily form option, controller creates two schedules in transaction, routine labels on medication show page. 220 examples, 0 failures. *(2026-03-13)*
 **Research:** Adherence drops from ~79% (once daily) to ~51% (four times daily) — pill_box_heuristics.pdf §3. System must surface regimen complexity to the user.
 
 ### SCHED-4: Schedule conflict resolution UX
@@ -288,6 +289,50 @@ This means SCHED-1a's data model is FHIR-ready by design. The manual schedule fo
 **Complexity:** Medium
 **Description:** ICO-required assessment for processing health data at scale. Implicit in DSPT but should be an explicit deliverable with its own sign-off. Covers: lawful basis for processing (likely legitimate interests + explicit consent for health data under UK GDPR Article 9), data flows, retention policy, rights of data subjects, risk assessment. Needed before live patient data flows in production.
 
+### SAFETY-7: Scheduling logic transparency for clinical risk evaluation
+**Priority:** P1 (elevated — prerequisite for DCB0129 and DTAC clinical safety domains)
+**Complexity:** Medium
+**Description:** Any app logic that determines what information is presented to users must be documented in a format accessible to clinical risk assessors who are not reading Ruby. This covers: schedule overlap detection rules, dose generation logic, routine anchor defaults and time windows, missed dose classification, "due now" window calculation, reorder nudge timing. Deliverable: a plain-language logic specification document that maps each user-visible scheduling decision to the code that produces it, with worked examples. Must be maintained as scheduling logic evolves. The test suite provides mechanical verification that code matches spec; this document provides the human-readable layer that a Clinical Safety Officer can validate against DCB0129 hazard analysis.
+**Applies to:** All app logic with clinical or informational impact on users — not just scheduling. Any new feature that changes what a user sees about their medication, doses, or adherence must be added to this document.
+**Depends on:** SAFETY-2 (DCB0129) — this feeds directly into the clinical safety case as evidence of design traceability.
+
+---
+
+## EPIC: Security Audit
+
+> Dispensed processes NHS patient data including NHS numbers, demographics, and medication information. Security posture must be demonstrable before any production use with real patient data, and is a hard prerequisite for Cyber Essentials (SAFETY-5), DSPT (SAFETY-3), and DTAC (SAFETY-4).
+
+### SEC-1: Dependency vulnerability audit
+**Priority:** P1
+**Complexity:** Low
+**Description:** Run `bundle audit` and `yarn audit` (if JS deps exist). Review and remediate all known CVEs in dependencies. Set up automated checks (e.g. GitHub Dependabot or `bundler-audit` in CI). Establish a policy for dependency update cadence.
+
+### SEC-2: Authentication and session security review
+**Priority:** P1
+**Complexity:** Medium
+**Description:** Review Devise configuration against OWASP recommendations: password complexity, session timeout, account lockout, CSRF protection, secure cookie flags, remember-me token handling. Review NHS Login integration for token storage security, callback validation, and session binding. Verify no sensitive data in logs.
+
+### SEC-3: Input validation and injection review
+**Priority:** P1
+**Complexity:** Medium
+**Description:** Audit all controller actions and form inputs for: SQL injection (parameterised queries), XSS (output encoding, Content-Security-Policy), mass assignment (strong parameters completeness), path traversal. Review any raw SQL or `html_safe` usage. Check HTTP security headers (X-Frame-Options, X-Content-Type-Options, Strict-Transport-Security).
+
+### SEC-4: Data protection at rest and in transit
+**Priority:** P1
+**Complexity:** Medium
+**Description:** Verify TLS configuration on Render (certificate, HSTS). Review database encryption posture (Render Postgres encryption at rest). Audit what sensitive fields (NHS numbers, names, addresses) are stored and whether field-level encryption is warranted. Review backup encryption. Ensure no PII in application logs.
+
+### SEC-5: Authorisation and access control review
+**Priority:** P1
+**Complexity:** Low
+**Description:** Verify all controller actions enforce correct ownership (patient can only see/modify their own data). Check for IDOR vulnerabilities across medications, schedules, doses, and patient profiles. Review admin role permissions. Verify no information leakage via error messages or API responses.
+
+### SEC-6: Penetration test (external)
+**Priority:** P2 (after SEC-1 through SEC-5 remediated)
+**Complexity:** High
+**Description:** Commission an external penetration test from an accredited provider (CHECK or CREST certified). Required as evidence for Cyber Essentials Plus (SAFETY-5). Scope: web application, authentication flows, API endpoints, NHS Login integration. Remediate findings before production launch.
+**Depends on:** SEC-1 through SEC-5, SAFETY-5
+
 ---
 
 ## EPIC: Infrastructure
@@ -392,7 +437,7 @@ This means SCHED-1a's data model is FHIR-ready by design. The manual schedule fo
 
 | Priority | Items | Theme |
 |----------|-------|-------|
-| P0 | SCHED-1a, SCHED-2, SCHED-3, UX-1, UX-2 | Core scheduling + verification loop |
-| P1 | NHS-1, NHS-2, SCHED-4, SCHED-5, UX-3, UX-4, UX-5, UX-6, UX-7, CARE-1, CARE-2, INFRA-1, INFRA-2, INFRA-3, INFRA-4, SAFETY-4, SAFETY-5 | NHS foundation, accessibility, caregiver, infra, compliance gateway |
-| P2 | NHS-3, NHS-4, SCHED-1b, SCHED-1c, SCHED-6, NOTIFY-1–3, INSIGHT-1–3, INTENT-1, SAFETY-1–3, SAFETY-6, UNCOL-1, INVEST-1/1a, INFRA-4a, INFRA-4b, INFRA-4c | Enrichment, routine customisation, notifications, clinical safety, pharmacist integration, investment case, advanced test coverage |
+| P0 | ~~SCHED-1a~~, ~~SCHED-2~~, ~~SCHED-3~~, UX-1, UX-2 | Core scheduling + verification loop |
+| P1 | ~~NHS-1~~, ~~NHS-2~~, SCHED-4, SCHED-5, UX-3, UX-4, UX-5, UX-6, UX-7, CARE-1, CARE-2, ~~INFRA-1~~, INFRA-2, INFRA-3, ~~INFRA-4~~, SAFETY-4, SAFETY-5, SAFETY-7, SEC-1–5 | NHS foundation, accessibility, caregiver, infra, compliance, security |
+| P2 | NHS-3, NHS-4, SCHED-1b, SCHED-1c, SCHED-6, NOTIFY-1–3, INSIGHT-1–3, INTENT-1, SAFETY-1–3, SAFETY-6, UNCOL-1, INVEST-1/1a, INFRA-4a, INFRA-4b, INFRA-4c, SEC-6 | Enrichment, routine customisation, notifications, clinical safety, pharmacist integration, investment case, pentest |
 | P3 | SCHED-1d, SCHED-1e, SCHED-1f, INTENT-2, UNCOL-2, UNCOL-3 | Advanced routines, education, pharmacy-facing |

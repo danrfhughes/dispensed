@@ -13,8 +13,9 @@
 
 ## Testing
 - Run `bundle exec rspec` to verify — target: 0 failures
-- System specs in `spec/system/` use `driven_by(:rack_test)` (no JS)
-- JS-dependent tests deferred to INFRA-4a (Selenium)
+- System specs in `spec/system/` use `driven_by(:rack_test)` by default (no JS)
+- Tag specs with `js: true` to use headless Chrome via Selenium (for JS-dependent tests)
+- Example: `it "toggles the form", js: true do ... end`
 
 ## Deployment
 - Render.com — app live at https://dispensed.onrender.com
