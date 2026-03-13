@@ -187,6 +187,12 @@ This means SCHED-1a's data model is FHIR-ready by design. The manual schedule fo
 **Complexity:** Low
 **Description:** The Taken/Skip/Cancel popup on the dashboard is misaligned — appears top-left of the viewport instead of anchored to the dose cell that was clicked. Should appear as an inline popover or modal centred on the triggering element.
 
+### UX-8: Auto-prompt schedule after adding a medication
+**Priority:** P1
+**Complexity:** Low
+**Description:** When a user manually adds a new medication, redirect them straight into the "Add schedule" flow for that medication instead of back to the medication show page. A medication without a schedule generates no doses and is invisible on the dashboard — the user has to discover the separate "Add schedule" action themselves. This should be a seamless UI pathway: create medication → immediately prompted to set up a schedule → land on medication page with schedule active. Include a "Skip for now" option for users who want to add the schedule later.
+**Research:** Medication UI Patterns §Mistake 2 (setup friction as largest drop-off point); pill_box_heuristics.pdf §1 (system must be loaded before it has value)
+
 ### UX-7: WCAG 2.2 AA accessibility audit
 **Priority:** P1
 **Complexity:** Medium
@@ -450,6 +456,6 @@ This means SCHED-1a's data model is FHIR-ready by design. The manual schedule fo
 | Priority | Items | Theme |
 |----------|-------|-------|
 | P0 | ~~SCHED-1a~~, ~~SCHED-2~~, ~~SCHED-3~~, UX-1, UX-2 | Core scheduling + verification loop |
-| P1 | ~~NHS-1~~, ~~NHS-2~~, SCHED-4, SCHED-5, SCHED-7, UX-3, UX-4, UX-5, UX-6, UX-7, CARE-1, CARE-2, ~~INFRA-1~~, INFRA-2, INFRA-3, ~~INFRA-4~~, SAFETY-4, SAFETY-5, SAFETY-7, SEC-1–5 | NHS foundation, PRN support, accessibility, caregiver, infra, compliance, security |
+| P1 | ~~NHS-1~~, ~~NHS-2~~, SCHED-4, SCHED-5, SCHED-7, UX-3, UX-4, UX-5, UX-6, UX-7, UX-8, CARE-1, CARE-2, ~~INFRA-1~~, INFRA-2, INFRA-3, ~~INFRA-4~~, SAFETY-4, SAFETY-5, SAFETY-7, SEC-1–5 | NHS foundation, PRN support, onboarding flow, accessibility, caregiver, infra, compliance, security |
 | P2 | NHS-3, NHS-4, SCHED-1b, SCHED-1c, SCHED-3b, SCHED-6, NOTIFY-1–3, INSIGHT-1–3, INTENT-1, SAFETY-1–3, SAFETY-6, UNCOL-1, INVEST-1/1a, INFRA-4a, INFRA-4b, INFRA-4c, SEC-6 | Enrichment, routine customisation, 3x-daily UX, notifications, clinical safety, pharmacist integration, investment case, pentest |
 | P3 | SCHED-1d, SCHED-1e, SCHED-1f, INTENT-2, UNCOL-2, UNCOL-3 | Advanced routines, education, pharmacy-facing |
