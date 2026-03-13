@@ -137,6 +137,18 @@ This means SCHED-1a's data model is FHIR-ready by design. The manual schedule fo
 **Priority:** P1
 **Complexity:** Low
 
+### SCHED-3b: Three-times-daily convenience UX
+**Priority:** P2
+**Complexity:** Low
+**Description:** A "Three times a day" option in the schedule frequency selector that creates three Schedule records in a single transaction (morning, midday, evening). Currently achievable by adding schedules one at a time — this is a convenience shortcut, not new capability. Lower priority than SCHED-3 because the manual path works and three-times-daily regimens are less common than twice-daily.
+**Depends on:** SCHED-3
+
+### SCHED-7: PRN / as-needed medication support
+**Priority:** P1
+**Complexity:** Medium
+**Description:** Support medications taken at the patient's discretion (pro re nata / "as needed") — e.g. pain relief, rescue inhalers, anti-nausea. Distinct from scheduled medications: no fixed times, no "missed" state, no dose generation. Key elements: (a) `prn` boolean on Medication or Schedule, (b) separate "Log a dose" action on the dashboard (patient-initiated, not system-prompted), (c) usage frequency tracking (doses per day/week), (d) max daily dose awareness (surface warnings when approaching prescribed limits, e.g. "3 of 4 max paracetamol doses today"), (e) PRN medications shown in a separate dashboard section from scheduled medications. Clinical note: PRN dose logging provides valuable data for pharmacist medication reviews — high PRN usage may indicate undertreated symptoms or need for a regular prescription.
+**Research:** pill_box_heuristics.pdf §3 (regimen complexity); Feature Priority Matrix (medication tracking beyond scheduled doses)
+
 ### SCHED-6: Timezone edge cases
 **Priority:** P2
 **Complexity:** Low
@@ -438,6 +450,6 @@ This means SCHED-1a's data model is FHIR-ready by design. The manual schedule fo
 | Priority | Items | Theme |
 |----------|-------|-------|
 | P0 | ~~SCHED-1a~~, ~~SCHED-2~~, ~~SCHED-3~~, UX-1, UX-2 | Core scheduling + verification loop |
-| P1 | ~~NHS-1~~, ~~NHS-2~~, SCHED-4, SCHED-5, UX-3, UX-4, UX-5, UX-6, UX-7, CARE-1, CARE-2, ~~INFRA-1~~, INFRA-2, INFRA-3, ~~INFRA-4~~, SAFETY-4, SAFETY-5, SAFETY-7, SEC-1–5 | NHS foundation, accessibility, caregiver, infra, compliance, security |
-| P2 | NHS-3, NHS-4, SCHED-1b, SCHED-1c, SCHED-6, NOTIFY-1–3, INSIGHT-1–3, INTENT-1, SAFETY-1–3, SAFETY-6, UNCOL-1, INVEST-1/1a, INFRA-4a, INFRA-4b, INFRA-4c, SEC-6 | Enrichment, routine customisation, notifications, clinical safety, pharmacist integration, investment case, pentest |
+| P1 | ~~NHS-1~~, ~~NHS-2~~, SCHED-4, SCHED-5, SCHED-7, UX-3, UX-4, UX-5, UX-6, UX-7, CARE-1, CARE-2, ~~INFRA-1~~, INFRA-2, INFRA-3, ~~INFRA-4~~, SAFETY-4, SAFETY-5, SAFETY-7, SEC-1–5 | NHS foundation, PRN support, accessibility, caregiver, infra, compliance, security |
+| P2 | NHS-3, NHS-4, SCHED-1b, SCHED-1c, SCHED-3b, SCHED-6, NOTIFY-1–3, INSIGHT-1–3, INTENT-1, SAFETY-1–3, SAFETY-6, UNCOL-1, INVEST-1/1a, INFRA-4a, INFRA-4b, INFRA-4c, SEC-6 | Enrichment, routine customisation, 3x-daily UX, notifications, clinical safety, pharmacist integration, investment case, pentest |
 | P3 | SCHED-1d, SCHED-1e, SCHED-1f, INTENT-2, UNCOL-2, UNCOL-3 | Advanced routines, education, pharmacy-facing |
